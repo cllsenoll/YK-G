@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import chardet
 
 # Sayfa Yapılandırması
 st.set_page_config(
@@ -76,29 +77,36 @@ def get_default_data():
         "Kart": [38000.0, 42000.0, 39000.0, 35000.0, 37480.0]
     })
 
-# --- HATASIZ AKILLI DOSYA OKUYUCU ---
+# --- TÜRKÇE KARAKTER VEYA KODLAMA HATASI VERMEYEN AKILLI YÜKLEYİCİ ---
 def load_uploaded_file(file):
     filename = file.name.lower()
     
     if filename.endswith('.csv'):
-        # CSV için farklı Türkçe kodlamaları ve ayrıştırıcıları sırayla dener
-        encodings = ['utf-8', 'iso-8859-9', 'cp1254', 'latin1']
+        # Dosyanın ilk 20KB'ını oku ve kodlamayı (encoding) otomatik bul
+        raw_data = file.read(20000)
+        file.seek(0)
+        detected = chardet.detect(raw_data)
+        detected_enc = detected['encoding'] if detected['encoding'] else 'iso-8859-9'
+        
+        # Olası Türkçe kodlama sırası
+        encodings_to_try = [detected_enc, 'iso-8859-9', 'cp1254', 'latin1', 'utf-8']
         separators = [';', ',', '\t']
         
-        for enc in encodings:
+        for enc in encodings_to_try:
             for sep in separators:
                 try:
                     file.seek(0)
                     df_temp = pd.read_csv(file, encoding=enc, sep=sep)
-                    # Sütunlarda Kurye veya Zimmet varsa doğru okumuş demektir
-                    if any(col.strip().lower() in ['kurye', 'zimmet'] for col in df_temp.columns.astype(str)):
+                    # Geçerli sütun kontrolü
+                    cols = [str(c).strip().lower() for c in df_temp.columns]
+                    if any(k in cols for k in ['kurye', 'zimmet', 'teslim', 'devir']):
                         return df_temp
                 except:
                     continue
         
-        # Son çare varsayılan dene
+        # Son çare: Hatalı baytları yok sayarak oku
         file.seek(0)
-        return pd.read_csv(file, sep=None, engine='python', on_bad_lines='skip')
+        return pd.read_csv(file, encoding='latin1', on_bad_lines='skip')
             
     elif filename.endswith('.xlsb'):
         return pd.read_excel(file, engine='pyxlsb')
@@ -124,7 +132,7 @@ if uploaded_file is not None:
     try:
         temp_df = load_uploaded_file(uploaded_file)
         
-        # Sütun isimlerindeki gizli boşlukları temizle
+        # Sütun isimlerindeki sağ/sol boşlukları temizle
         temp_df.columns = temp_df.columns.astype(str).str.strip()
         
         required_cols = ["Kurye", "Zimmet", "Teslim", "Devir"]
