@@ -77,45 +77,76 @@ def get_default_data():
         "Kart": [38000.0, 42000.0, 39000.0, 35000.0, 37480.0]
     })
 
-# --- TÜRKÇE KARAKTER VEYA KODLAMA HATASI VERMEYEN AKILLI YÜKLEYİCİ ---
+# --- ESNEK VE AKILLI DOSYA OKUYUCU ---
 def load_uploaded_file(file):
     filename = file.name.lower()
     
     if filename.endswith('.csv'):
-        # Dosyanın ilk 20KB'ını oku ve kodlamayı (encoding) otomatik bul
+        # 1. Encoding Tespiti
         raw_data = file.read(20000)
         file.seek(0)
         detected = chardet.detect(raw_data)
         detected_enc = detected['encoding'] if detected['encoding'] else 'iso-8859-9'
         
-        # Olası Türkçe kodlama sırası
-        encodings_to_try = [detected_enc, 'iso-8859-9', 'cp1254', 'latin1', 'utf-8']
-        separators = [';', ',', '\t']
+        encodings = [detected_enc, 'iso-8859-9', 'cp1254', 'utf-8', 'latin1']
+        separators = [';', ',', '\t', '|']
         
-        for enc in encodings_to_try:
+        # 2. Farklı ayraç ve kodlamaları dene
+        for enc in encodings:
             for sep in separators:
                 try:
                     file.seek(0)
-                    df_temp = pd.read_csv(file, encoding=enc, sep=sep)
-                    # Geçerli sütun kontrolü
-                    cols = [str(c).strip().lower() for c in df_temp.columns]
-                    if any(k in cols for k in ['kurye', 'zimmet', 'teslim', 'devir']):
+                    # header=None veya header=0 durumları için engine='python' esnek ayrıştırır
+                    df_temp = pd.read_csv(file, encoding=enc, sep=sep, on_bad_lines='skip')
+                    if df_temp.shape[1] > 1:
                         return df_temp
                 except:
                     continue
         
-        # Son çare: Hatalı baytları yok sayarak oku
+        # Son Çare: Python motoru ile otomatik sep algılama
         file.seek(0)
-        return pd.read_csv(file, encoding='latin1', on_bad_lines='skip')
+        return pd.read_csv(file, encoding='iso-8859-9', sep=None, engine='python', on_bad_lines='skip')
             
     elif filename.endswith('.xlsb'):
         return pd.read_excel(file, engine='pyxlsb')
-        
     elif filename.endswith('.xls'):
         return pd.read_excel(file, engine='xlrd')
-        
     else:
         return pd.read_excel(file)
+
+# --- SÜTUN İSİMLERİNİ OTOMATİK EŞLEŞTİRME VE DÜZELTME ---
+def map_columns(df_raw):
+    # Eğer üst satırlarda başlık harici açıklamalar varsa, başlık satırını ara
+    df_temp = df_raw.copy()
+    
+    # Sütun adlarını düz stringe çevir
+    cols = [str(c).strip() for c in df_temp.columns]
+    df_temp.columns = cols
+    
+    # Sütun adı haritası (Farklı KPOS adlandırmalarını standartlaştırır)
+    column_mapping = {}
+    
+    for c in df_temp.columns:
+        c_clean = str(c).strip().lower()
+        if any(k in c_clean for k in ['kurye', 'personel', 'dağıtıcı', 'dagitici', 'ad soyad', 'isim']):
+            column_mapping[c] = 'Kurye'
+        elif any(k in c_clean for k in ['zimmet', 'aldığı', 'aldigi', 'toplam zimmet']):
+            column_mapping[c] = 'Zimmet'
+        elif any(k in c_clean for k in ['teslim', 'teslimat', 'dağıtılan', 'dagitilan']):
+            column_mapping[c] = 'Teslim'
+        elif any(k in c_clean for k in ['devir', 'kalan', 'teslim edilmeyen']):
+            column_mapping[c] = 'Devir'
+        elif 'sms' in c_clean:
+            column_mapping[c] = 'Sms'
+        elif 'imza' in c_clean or 'i̇mza' in c_clean:
+            column_mapping[c] = 'İmza'
+        elif 'nakit' in c_clean:
+            column_mapping[c] = 'Nakit'
+        elif 'kart' in c_clean or 'pos' in c_clean:
+            column_mapping[c] = 'Kart'
+            
+    df_temp = df_temp.rename(columns=column_mapping)
+    return df_temp
 
 # --- VERİ KAYNAĞI PANELİ ---
 st.sidebar.title("⚙️ Veri Kaynağı")
@@ -130,26 +161,25 @@ df = None
 
 if uploaded_file is not None:
     try:
-        temp_df = load_uploaded_file(uploaded_file)
-        
-        # Sütun isimlerindeki sağ/sol boşlukları temizle
-        temp_df.columns = temp_df.columns.astype(str).str.strip()
+        raw_df = load_uploaded_file(uploaded_file)
+        mapped_df = map_columns(raw_df)
         
         required_cols = ["Kurye", "Zimmet", "Teslim", "Devir"]
-        missing_cols = [col for col in required_cols if col not in temp_df.columns]
+        missing_cols = [col for col in required_cols if col not in mapped_df.columns]
         
         if missing_cols:
             st.sidebar.error(f"Eksik Sütunlar: {', '.join(missing_cols)}")
+            st.sidebar.info("Mevcut Sütunlar: " + ", ".join(list(raw_df.columns)[:5]) + "...")
             df = get_default_data()
         else:
             num_cols = ["Zimmet", "Teslim", "Devir", "Sms", "İmza", "Nakit", "Kart"]
             for c in num_cols:
-                if c in temp_df.columns:
-                    temp_df[c] = pd.to_numeric(temp_df[c], errors="coerce").fillna(0)
+                if c in mapped_df.columns:
+                    mapped_df[c] = pd.to_numeric(mapped_df[c].astype(str).str.replace(',', '.'), errors="coerce").fillna(0)
                 else:
-                    temp_df[c] = 0
+                    mapped_df[c] = 0
             
-            df = temp_df
+            df = mapped_df
             st.sidebar.success(f"'{uploaded_file.name}' başarıyla yüklendi!")
             
     except Exception as e:
