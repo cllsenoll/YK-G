@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- GÖRSELDEKİ ÖZEL KOYU TEMA VE CSS STİLLERİ ---
+# --- KOYU TEMA VE CSS STİLLERİ ---
 custom_css = """
 <style>
     .stApp {
@@ -64,46 +64,43 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# --- VARSAYILAN (ÖRNEK) VERİ ---
+# --- VARSAYILAN (TEST/ÖRNEK) VERİ ---
 def get_default_data():
     return pd.DataFrame({
-        "Kurye": ["Ahmet Berkant Öksüz", "Allattin Cobeci", "Hasan Sağlam", "Mehmet Kaymaz", "Suat Arı"],
-        "Zimmet": [266, 250, 247, 246, 240],
-        "Teslim": [228, 218, 212, 213, 207],
-        "Devir": [37, 32, 35, 33, 33],
-        "Sms": [150, 140, 130, 145, 135],
-        "İmza": [78, 78, 82, 68, 72],
-        "Nakit": [12500.0, 18000.0, 14200.0, 9800.0, 11000.0],
-        "Kart": [38000.0, 42000.0, 39000.0, 35000.0, 37480.0]
+        "Kurye": ["Ahmet Berkant Öksüz", "Allattin Cobeci", "Hasan Sağlam", "Mehmet Kaymaz"],
+        "Zimmet": [266, 250, 247, 246],
+        "Teslim": [228, 218, 212, 213],
+        "Devir": [38, 32, 35, 33],
+        "Sms": [150, 140, 130, 145],
+        "İmza": [70, 70, 75, 60],
+        "KS": [8, 8, 7, 8],
+        "Nakit": [0.0, 0.0, 0.0, 0.0],
+        "Kart": [0.0, 0.0, 0.0, 0.0]
     })
 
-# --- ESNEK VE AKILLI DOSYA OKUYUCU ---
+# --- DOSYA OKUYUCU ---
 def load_uploaded_file(file):
     filename = file.name.lower()
     
     if filename.endswith('.csv'):
-        # 1. Encoding Tespiti
         raw_data = file.read(20000)
         file.seek(0)
         detected = chardet.detect(raw_data)
         detected_enc = detected['encoding'] if detected['encoding'] else 'iso-8859-9'
         
         encodings = [detected_enc, 'iso-8859-9', 'cp1254', 'utf-8', 'latin1']
-        separators = [';', ',', '\t', '|']
+        separators = [';', ',', '\t']
         
-        # 2. Farklı ayraç ve kodlamaları dene
         for enc in encodings:
             for sep in separators:
                 try:
                     file.seek(0)
-                    # header=None veya header=0 durumları için engine='python' esnek ayrıştırır
                     df_temp = pd.read_csv(file, encoding=enc, sep=sep, on_bad_lines='skip')
                     if df_temp.shape[1] > 1:
                         return df_temp
                 except:
                     continue
         
-        # Son Çare: Python motoru ile otomatik sep algılama
         file.seek(0)
         return pd.read_csv(file, encoding='iso-8859-9', sep=None, engine='python', on_bad_lines='skip')
             
@@ -114,39 +111,98 @@ def load_uploaded_file(file):
     else:
         return pd.read_excel(file)
 
-# --- SÜTUN İSİMLERİNİ OTOMATİK EŞLEŞTİRME VE DÜZELTME ---
-def map_columns(df_raw):
-    # Eğer üst satırlarda başlık harici açıklamalar varsa, başlık satırını ara
-    df_temp = df_raw.copy()
+# --- HAM KPOS VERİSİNİ İŞLEME VE PERFORMANS ÖZETİ OLUŞTURMA ---
+def parse_kpos_data(df_raw):
+    # Sütun isimlerini temizle
+    df_raw.columns = df_raw.columns.astype(str).str.strip()
     
-    # Sütun adlarını düz stringe çevir
-    cols = [str(c).strip() for c in df_temp.columns]
-    df_temp.columns = cols
+    # Esnek Sütun Yakalama
+    col_zimmet_personel = None
+    col_teslim_personel = None
+    col_durum = None
+    col_kanal = None
+    col_aciklama = None
     
-    # Sütun adı haritası (Farklı KPOS adlandırmalarını standartlaştırır)
-    column_mapping = {}
+    for col in df_raw.columns:
+        c_clean = col.lower()
+        if 'zimmet' in c_clean and 'personel' in c_clean:
+            col_zimmet_personel = col
+        elif 'teslim' in c_clean and 'personel' in c_clean:
+            col_teslim_personel = col
+        elif 'durum' in c_clean or 'teslimat durumu' in c_clean:
+            col_durum = col
+        elif 'kanal' in c_clean:
+            col_kanal = col
+        elif 'açıklama' in c_clean or 'aciklama' in c_clean:
+            col_aciklama = col
+
+    # Eğer ham veri formatı bulunamazsa uyarı ver
+    if not col_zimmet_personel:
+        return None, "Sütun bulunamadı: 'AT Zimmet Personel Adı'"
+
+    # Personel Listesi (Zimmeti veya Teslimatı olan tüm benzersiz isimler)
+    p_zimmet = df_raw[col_zimmet_personel].dropna().astype(str).str.strip().unique()
+    p_teslim = df_raw[col_teslim_personel].dropna().astype(str).str.strip().unique() if col_teslim_personel else []
     
-    for c in df_temp.columns:
-        c_clean = str(c).strip().lower()
-        if any(k in c_clean for k in ['kurye', 'personel', 'dağıtıcı', 'dagitici', 'ad soyad', 'isim']):
-            column_mapping[c] = 'Kurye'
-        elif any(k in c_clean for k in ['zimmet', 'aldığı', 'aldigi', 'toplam zimmet']):
-            column_mapping[c] = 'Zimmet'
-        elif any(k in c_clean for k in ['teslim', 'teslimat', 'dağıtılan', 'dagitilan']):
-            column_mapping[c] = 'Teslim'
-        elif any(k in c_clean for k in ['devir', 'kalan', 'teslim edilmeyen']):
-            column_mapping[c] = 'Devir'
-        elif 'sms' in c_clean:
-            column_mapping[c] = 'Sms'
-        elif 'imza' in c_clean or 'i̇mza' in c_clean:
-            column_mapping[c] = 'İmza'
-        elif 'nakit' in c_clean:
-            column_mapping[c] = 'Nakit'
-        elif 'kart' in c_clean or 'pos' in c_clean:
-            column_mapping[c] = 'Kart'
-            
-    df_temp = df_temp.rename(columns=column_mapping)
-    return df_temp
+    all_personnel = set(p_zimmet).union(set(p_teslim))
+    all_personnel = [p for p in all_personnel if p and p.lower() != 'nan' and p != '']
+
+    summary_list = []
+
+    for p in all_personnel:
+        # 1. Zimmet Sayısı
+        zimmet_mask = df_raw[col_zimmet_personel].astype(str).str.strip() == p
+        zimmet_count = int(zimmet_mask.sum())
+
+        # 2. Teslim Sayısı
+        if col_teslim_personel:
+            teslim_mask = df_raw[col_teslim_personel].astype(str).str.strip() == p
+            teslim_count = int(teslim_mask.sum())
+        else:
+            teslim_mask = pd.Series(False, index=df_raw.index)
+            teslim_count = 0
+
+        # 3. Devir Sayısı (Zimmetinde ismi geçen ve Şubede Bekletiliyor olanlar)
+        if col_durum:
+            devir_mask = zimmet_mask & df_raw[col_durum].astype(str).str.contains('Şubede Bekletiliyor|Teslim Edilmedi', case=False, na=False)
+            devir_count = int(devir_mask.sum())
+        else:
+            devir_count = max(0, zimmet_count - teslim_count)
+
+        # 4. SMS Sayısı
+        if col_kanal:
+            sms_mask = teslim_mask & df_raw[col_kanal].astype(str).str.upper().str.contains('SMS', na=False)
+            sms_count = int(sms_mask.sum())
+        else:
+            sms_count = 0
+
+        # 5. İMZA Sayısı
+        if col_kanal:
+            imza_mask = teslim_mask & df_raw[col_kanal].astype(str).str.upper().str.contains('İMZA|IMZA', na=False)
+            imza_count = int(imza_mask.sum())
+        else:
+            imza_count = 0
+
+        # 6. KS Sayısı (KAPIYA BIRAKILDI VEYA POS Entegrasyon)
+        ks_by_kanal = (teslim_mask & df_raw[col_kanal].astype(str).str.upper().str.contains('KAPIYA BIRAKILDI', na=False)) if col_kanal else pd.Series(False, index=df_raw.index)
+        ks_by_aciklama = (teslim_mask & df_raw[col_aciklama].astype(str).str.contains('POS Entegrasyon', case=False, na=False)) if col_aciklama else pd.Series(False, index=df_raw.index)
+        
+        ks_count = int((ks_by_kanal | ks_by_aciklama).sum())
+
+        summary_list.append({
+            "Kurye": p,
+            "Zimmet": zimmet_count,
+            "Teslim": teslim_count,
+            "Devir": devir_count,
+            "Sms": sms_count,
+            "İmza": imza_count,
+            "KS": ks_count,
+            "Nakit": 0.0,
+            "Kart": 0.0
+        })
+
+    df_summary = pd.DataFrame(summary_list)
+    return df_summary, None
 
 # --- VERİ KAYNAĞI PANELİ ---
 st.sidebar.title("⚙️ Veri Kaynağı")
@@ -162,25 +218,19 @@ df = None
 if uploaded_file is not None:
     try:
         raw_df = load_uploaded_file(uploaded_file)
-        mapped_df = map_columns(raw_df)
         
-        required_cols = ["Kurye", "Zimmet", "Teslim", "Devir"]
-        missing_cols = [col for col in required_cols if col not in mapped_df.columns]
-        
-        if missing_cols:
-            st.sidebar.error(f"Eksik Sütunlar: {', '.join(missing_cols)}")
-            st.sidebar.info("Mevcut Sütunlar: " + ", ".join(list(raw_df.columns)[:5]) + "...")
-            df = get_default_data()
+        # Eğer yüklenen dosya zaten özet tablo formatındaysa doğrudan al, değilse ham veriyi işle
+        if "Kurye" in raw_df.columns and "Zimmet" in raw_df.columns:
+            df = raw_df
+            st.sidebar.success(f"'{uploaded_file.name}' özet tablo olarak yüklendi!")
         else:
-            num_cols = ["Zimmet", "Teslim", "Devir", "Sms", "İmza", "Nakit", "Kart"]
-            for c in num_cols:
-                if c in mapped_df.columns:
-                    mapped_df[c] = pd.to_numeric(mapped_df[c].astype(str).str.replace(',', '.'), errors="coerce").fillna(0)
-                else:
-                    mapped_df[c] = 0
-            
-            df = mapped_df
-            st.sidebar.success(f"'{uploaded_file.name}' başarıyla yüklendi!")
+            parsed_df, err = parse_kpos_data(raw_df)
+            if err:
+                st.sidebar.error(err)
+                df = get_default_data()
+            else:
+                df = parsed_df
+                st.sidebar.success(f"'{uploaded_file.name}' başarıyla analiz edildi!")
             
     except Exception as e:
         st.sidebar.error(f"Dosya okuma hatası: {e}")
@@ -295,7 +345,7 @@ with tab_kurye:
 
             with c_details:
                 st.markdown(f"**{row['Kurye']}**")
-                st.caption(f"Zimmet: **{row['Zimmet']}** | Teslim: **{row['Teslim']}** | Devir: **{row['Devir']}**")
+                st.caption(f"Zimmet: **{row['Zimmet']}** | Teslim: **{row['Teslim']}** | Devir: **{row['Devir']}** | SMS: **{row['Sms']}** | İmza: **{row['İmza']}** | KS: **{row['KS']}**")
 
             with c_chart:
                 fig_mini = go.Figure(data=[go.Pie(
@@ -330,6 +380,6 @@ with tab_f4:
     st.title("Tahsilat & F4 Ödeme Listesi")
     
     st.dataframe(
-        df[["Kurye", "Zimmet", "Teslim", "Devir", "Nakit", "Kart", "Toplam_Tahsilat"]],
+        df[["Kurye", "Zimmet", "Teslim", "Devir", "Sms", "İmza", "KS", "Nakit", "Kart", "Toplam_Tahsilat"]],
         use_container_width=True
     )
