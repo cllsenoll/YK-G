@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import os
 
 # Sayfa Yapılandırması
 st.set_page_config(
@@ -13,19 +12,16 @@ st.set_page_config(
 # --- GÖRSELDEKİ ÖZEL KOYU TEMA VE CSS STİLLERİ ---
 custom_css = """
 <style>
-    /* Ana Arka Plan */
     .stApp {
         background-color: #0B1426;
         color: #FFFFFF;
     }
     
-    /* Üst Başlıklar */
     h1, h2, h3, h4, span, label {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* Mavi ve Turuncu KPI Kartları */
     .kpi-card-blue {
         background: linear-gradient(135deg, #0A43A6 0%, #002266 100%);
         border-radius: 16px;
@@ -57,7 +53,6 @@ custom_css = """
         font-weight: bold;
     }
 
-    /* Streamlit File Uploader Özelleştirme */
     div[data-testid="stFileUploader"] {
         background-color: #121E36;
         border-radius: 10px;
@@ -81,34 +76,42 @@ def get_default_data():
         "Kart": [38000.0, 42000.0, 39000.0, 35000.0, 37480.0]
     })
 
-# --- TÜM EXCEL / DOSYA TÜRLERİNİ OKUYAN OTOMATİK DÖNÜŞTÜRÜCÜ ---
+# --- HATASIZ AKILLI DOSYA OKUYUCU ---
 def load_uploaded_file(file):
     filename = file.name.lower()
     
     if filename.endswith('.csv'):
-        # CSV Dosyaları için (Noktalı virgül veya virgül ayrımı otomatik denenir)
-        try:
-            return pd.read_csv(file, sep=None, engine='python')
-        except:
-            file.seek(0)
-            return pd.read_csv(file, encoding='utf-8', errors='ignore')
+        # CSV için farklı Türkçe kodlamaları ve ayrıştırıcıları sırayla dener
+        encodings = ['utf-8', 'iso-8859-9', 'cp1254', 'latin1']
+        separators = [';', ',', '\t']
+        
+        for enc in encodings:
+            for sep in separators:
+                try:
+                    file.seek(0)
+                    df_temp = pd.read_csv(file, encoding=enc, sep=sep)
+                    # Sütunlarda Kurye veya Zimmet varsa doğru okumuş demektir
+                    if any(col.strip().lower() in ['kurye', 'zimmet'] for col in df_temp.columns.astype(str)):
+                        return df_temp
+                except:
+                    continue
+        
+        # Son çare varsayılan dene
+        file.seek(0)
+        return pd.read_csv(file, sep=None, engine='python', on_bad_lines='skip')
             
     elif filename.endswith('.xlsb'):
-        # Binary Excel (.xlsb)
         return pd.read_excel(file, engine='pyxlsb')
         
     elif filename.endswith('.xls'):
-        # Eski Excel formatı (.xls)
         return pd.read_excel(file, engine='xlrd')
         
     else:
-        # Standart Excel (.xlsx, .xlsm, vb.)
         return pd.read_excel(file)
 
 # --- VERİ KAYNAĞI PANELİ ---
 st.sidebar.title("⚙️ Veri Kaynağı")
 
-# Uzantı kısıtlaması kaldırıldı, tüm Excel ve CSV dosyaları seçilebilir
 uploaded_file = st.sidebar.file_uploader(
     "Dosya Yükleyin (.xlsx, .xls, .xlsm, .xlsb, .csv)", 
     type=None,
@@ -237,7 +240,6 @@ with tab_main:
 
     st.plotly_chart(fig_donut, use_container_width=True)
 
-
 # ==========================================
 # 2. KURYE PERFORMANSI
 # ==========================================
@@ -282,7 +284,6 @@ with tab_kurye:
                 st.plotly_chart(fig_mini, use_container_width=False)
             
             st.markdown("<hr style='border-color: #1E2D4A; margin: 5px 0;'>", unsafe_allow_html=True)
-
 
 # ==========================================
 # 3. TAHSİLAT & F4 ÖDEME LİSTESİ
