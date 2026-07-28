@@ -1,192 +1,253 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 
 # Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Şube Operasyonel Performans Paneli",
-    page_icon="📦",
+    page_title="Ana Panel - Kargo Operasyon",
+    page_icon="📱",
     layout="wide"
 )
 
-# --- VERİ SETİ (KPOS Veri Yapısı) ---
-@st.cache_data
-def load_data():
-    data = {
-        "Kurye": ["Ahmet Yılmaz", "Mehmet Kaya", "Ayşe Demir", "Ali Can", "Fatma Şahin"],
-        "Zimmet": [120, 140, 110, 95, 130],
-        "Teslim": [112, 126, 105, 80, 104],
-        "Devir": [8, 14, 5, 15, 26],
-        "Sms": [80, 90, 75, 55, 70],
-        "İmza": [32, 36, 30, 25, 34],
-        "Nakit": [450.0, 600.0, 300.0, 200.0, 500.0],
-        "Kart": [1200.0, 1500.0, 950.0, 800.0, 1100.0]
+# --- GÖRSELDEKİ ÖZEL KOYU TEMA VE CSS STİLLERİ ---
+custom_css = """
+<style>
+    /* Ana Arka Plan */
+    .stApp {
+        background-color: #0B1426;
+        color: #FFFFFF;
     }
-    df = pd.DataFrame(data)
-    # Teslimat Oranı Hesaplama (%)
-    df["Teslimat_Orani"] = (df["Teslim"] / df["Zimmet"]) * 100
-    return df
+    
+    /* Üst Başlıklar */
+    h1, h2, h3, h4, span, label {
+        color: #FFFFFF !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-df = load_data()
+    /* Görseldeki Mavi ve Turuncu KPI Kartları */
+    .kpi-card-blue {
+        background: linear-gradient(135deg, #0A43A6 0%, #002266 100%);
+        border-radius: 16px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        margin-bottom: 15px;
+    }
+    
+    .kpi-card-orange {
+        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%);
+        border-radius: 16px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        margin-bottom: 15px;
+    }
 
-# --- SEKME YAPISI ---
-tab_main, tab_personel, tab_f4 = st.tabs([
-    "📊 Ana Panel (Dashboard)", 
-    "👤 Personel Hesap Alımı", 
-    "💳 F4 Ödeme Listesi"
+    .kpi-title {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .kpi-value {
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    /* Kurye Kart Tasarımı */
+    .kurye-card {
+        background-color: #121E36;
+        border-radius: 14px;
+        padding: 15px;
+        margin-bottom: 12px;
+        border: 1px solid #1E2D4A;
+    }
+
+    /* Streamlit File Uploader Özelleştirme */
+    div[data-testid="stFileUploader"] {
+        background-color: #121E36;
+        border-radius: 10px;
+        padding: 10px;
+    }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+
+# --- EXCEL / DUMMY VERİ YÜKLEME ---
+st.sidebar.title("⚙️ Veri Kaynağı")
+uploaded_file = st.sidebar.file_uploader("KPOS Excel Dosyası Yükleyin", type=["xlsx", "xls"])
+
+@st.cache_data
+def get_default_data():
+    return pd.DataFrame({
+        "Kurye": ["Ahmet Berkant Öksüz", "Allattin Cobeci", "Hasan Sağlam", "Mehmet Kaymaz", "Suat Arı"],
+        "Zimmet": [266, 250, 247, 246, 240],
+        "Teslim": [228, 218, 212, 213, 207],
+        "Devir": [37, 32, 35, 33, 33],
+        "Sms": [150, 140, 130, 145, 135],
+        "İmza": [78, 78, 82, 68, 72],
+        "Nakit": [12500.0, 18000.0, 14200.0, 9800.0, 11000.0],
+        "Kart": [38000.0, 42000.0, 39000.0, 35000.0, 37480.0]
+    })
+
+if uploaded_file is not None:
+    try:
+        df = pd.read_excel(uploaded_file)
+        st.sidebar.success("Excel başarıyla yüklendi!")
+    except Exception as e:
+        st.sidebar.error("Excel okunurken hata oluştu, varsayılan veri gösteriliyor.")
+        df = get_default_data()
+else:
+    df = get_default_data()
+
+# Hesaplamalar
+df["Teslimat_Orani"] = (df["Teslim"] / df["Zimmet"]) * 100
+df["Toplam_Tahsilat"] = df["Nakit"] + df["Kart"]
+
+# --- SEKME YAPISI (Görseldeki Alt Menü Mantığı) ---
+tab_main, tab_kurye, tab_f4 = st.tabs([
+    "🏠 Ana Panel", 
+    "👥 Kurye Performansı", 
+    "💳 Tahsilat & F4"
 ])
 
 # ==========================================
-# 1. ANA PANEL (DASHBOARD)
+# 1. ANA PANEL (GÖRSEL 1'DEKİ TASARIM)
 # ==========================================
 with tab_main:
-    st.title("📦 Şube Operasyonel Performans Paneli")
-    st.markdown("---")
-
-    # Toplam Veri Hesaplamaları
+    st.title("Ana Panel")
+    
+    # Toplam Metrikler
     toplam_zimmet = int(df["Zimmet"].sum())
     toplam_teslimat = int(df["Teslim"].sum())
     toplam_devir = int(df["Devir"].sum())
-    
-    # Günün Personeli (En yüksek teslimat oranına sahip kurye)
-    gunun_personeli_row = df.loc[df["Teslimat_Orani"].idxmax()]
-    gunun_personeli_ad = gunun_personeli_row["Kurye"]
-    gunun_personeli_oran = gunun_personeli_row["Teslimat_Orani"]
+    toplam_tahsilat = df["Toplam_Tahsilat"].sum()
+    genel_oran = (toplam_teslimat / toplam_zimmet) * 100 if toplam_zimmet > 0 else 0
 
-    # 1. EN ÜST 4 KUTU (KPI METRİKLERİ)
-    col1, col2, col3, col4 = st.columns(4)
+    # 4 ADET RENKLİ KUTUCUK (2x2 Grid Layout)
+    row1_col1, row1_col2 = st.columns(2)
+    with row1_col1:
+        st.markdown(f"""
+            <div class="kpi-card-blue">
+                <div class="kpi-title"><span>📦 Zimmet</span> ⚙️</div>
+                <div class="kpi-value">{toplam_zimmet:,}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
-    with col1:
-        st.metric(label="📦 Toplam Zimmet Sayısı", value=f"{toplam_zimmet:,}")
+    with row1_col2:
+        st.markdown(f"""
+            <div class="kpi-card-orange">
+                <div class="kpi-title"><span>📝 Teslim Edilen</span> 🚚</div>
+                <div class="kpi-value">{toplam_teslimat:,}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
-    with col2:
-        st.metric(label="✅ Toplam Teslimat Sayısı", value=f"{toplam_teslimat:,}")
+    row2_col1, row2_col2 = st.columns(2)
+    with row2_col1:
+        st.markdown(f"""
+            <div class="kpi-card-blue">
+                <div class="kpi-title"><span>🔄 Devir</span> 🔁</div>
+                <div class="kpi-value">{toplam_devir:,}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
-    with col3:
-        st.metric(label="🔄 Devir Sayısı", value=f"{toplam_devir:,}")
-
-    with col4:
-        st.metric(
-            label="🏆 Günün Personeli", 
-            value=gunun_personeli_ad, 
-            delta=f"%{gunun_personeli_oran:.1f} Başarı"
-        )
+    with row2_col2:
+        st.markdown(f"""
+            <div class="kpi-card-orange">
+                <div class="kpi-title"><span>💳 Tahsilat Tutarı</span> ₺</div>
+                <div class="kpi-value">₺{toplam_tahsilat:,.0f}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Teslimat Oranı")
 
-    # 2. ŞUBE PERFORMANSI (İBRE) VE KANALLAR (PASTA GRAFİĞİ) YAN YANA
-    chart_col1, chart_col2 = st.columns(2)
+    # DONUT GRAFİK (Görsel 1'deki halkanın birebir kopyası)
+    fig_donut = go.Figure(data=[go.Pie(
+        labels=["Teslim Edilen", "Devir"],
+        values=[toplam_teslimat, toplam_devir],
+        hole=0.68,
+        marker_colors=["#0A58CA", "#FF6B00"],
+        textinfo="none"
+    )])
 
-    with chart_col1:
-        st.subheader("🎯 Şube Genel Teslimat Performansı")
-        genel_basari_orani = (toplam_teslimat / toplam_zimmet) * 100 if toplam_zimmet > 0 else 0
-        
-        # İbre (Gauge) Grafiği
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=genel_basari_orani,
-            number={'suffix': "%", 'font': {'size': 36}},
-            gauge={
-                'axis': {'range': [0, 100]},
-                'bar': {'color': "#1E88E5"},
-                'steps': [
-                    {'range': [0, 60], 'color': "#FFCDD2"},
-                    {'range': [60, 85], 'color': "#FFE082"},
-                    {'range': [85, 100], 'color': "#C8E6C9"}
-                ],
-                'threshold': {
-                    'line': {'color': "green", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 90
-                }
-            }
-        ))
-        fig_gauge.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=20))
-        st.plotly_chart(fig_gauge, use_container_width=True)
+    fig_donut.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color="white"),
+        showlegend=True,
+        height=260,
+        margin=dict(l=10, r=10, t=10, b=10),
+        annotations=[dict(
+            text=f"<b>%{genel_oran:.1f}</b>",
+            x=0.5, y=0.5,
+            font_size=26,
+            font_color="white",
+            showarrow=False
+        )]
+    )
 
-    with chart_col2:
-        st.subheader("🥧 Kargo Teslimat Kanalları Dağılımı")
-        toplam_sms = int(df["Sms"].sum())
-        toplam_imza = int(df["İmza"].sum())
-        
-        # Pasta / Donut Grafiği
-        fig_pie = px.pie(
-            names=["SMS ile Teslimat", "İmza / Adrese Teslimat"],
-            values=[toplam_sms, toplam_imza],
-            hole=0.4,
-            color_discrete_sequence=["#26A69A", "#FFA726"]
-        )
-        fig_pie.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=20))
-        st.plotly_chart(fig_pie, use_container_width=True)
+    st.plotly_chart(fig_donut, use_container_width=True)
 
-    st.markdown("---")
 
-    # 3. PERSONEL BAZLI KARŞILAŞTIRMALI TESLİMAT GRAFİĞİ VE LİSTESİ
-    st.subheader("👥 Personel Bazlı Karşılaştırmalı Teslimat İstatistikleri")
+# ==========================================
+# 2. KURYE PERFORMANSI (GÖRSEL 2'DEKİ TASARIM)
+# ==========================================
+with tab_kurye:
+    st.title("Kurye Performansı")
 
     for idx, row in df.iterrows():
+        oran = row["Teslimat_Orani"]
+        
         with st.container():
-            c_avatar, c_info, c_metrics, c_chart = st.columns([0.8, 2.2, 3.5, 2.5])
+            c_img, c_details, c_chart = st.columns([0.8, 2.5, 1.2])
             
-            with c_avatar:
-                st.image(f"https://api.dicebear.com/7.x/bottts/svg?seed={row['Kurye']}", width=65)
+            # Profil Fotosu
+            with c_img:
+                st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={row['Kurye']}", width=55)
 
-            with c_info:
-                st.markdown(f"### {row['Kurye']}")
-                st.caption("Saha Kurye Personeli")
+            # İsim ve İstatistikler
+            with c_details:
+                st.markdown(f"**{row['Kurye']}**")
+                st.caption(f"Zimmet: **{row['Zimmet']}** | Teslim: **{row['Teslim']}** | Devir: **{row['Devir']}**")
 
-            with c_metrics:
-                m1, m2, m3 = st.columns(3)
-                m1.metric("Zimmet", row["Zimmet"])
-                m2.metric("Teslim", row["Teslim"])
-                m3.metric("Devir", row["Devir"])
-
+            # Sağ taraftaki Çember Grafik (Görsel 2)
             with c_chart:
-                fig_ring = go.Figure(go.Pie(
-                    values=[row["Teslimat_Orani"], max(0, 100 - row["Teslimat_Orani"])],
+                fig_mini = go.Figure(data=[go.Pie(
+                    values=[oran, max(0, 100 - oran)],
                     hole=0.7,
-                    marker_colors=['#4CAF50', '#E0E0E0'],
-                    textinfo='none',
-                    hoverinfo='label+percent'
-                ))
-                fig_ring.update_layout(
+                    marker_colors=["#FF6B00", "#0A43A6"],
+                    textinfo="none"
+                )])
+                fig_mini.update_layout(
                     showlegend=False,
-                    height=90,
-                    width=90,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=70,
+                    width=70,
                     margin=dict(l=0, r=0, t=0, b=0),
                     annotations=[dict(
-                        text=f"%{row['Teslimat_Orani']:.0f}",
+                        text=f"%{oran:.1f}",
                         x=0.5, y=0.5,
-                        font_size=16,
+                        font_size=12,
+                        font_color="white",
                         showarrow=False
                     )]
                 )
-                st.plotly_chart(fig_ring, use_container_width=False)
+                st.plotly_chart(fig_mini, use_container_width=False)
             
-            st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='border-color: #1E2D4A; margin: 5px 0;'>", unsafe_allow_html=True)
+
 
 # ==========================================
-# 2. PERSONEL HESAP ALIMI EKRANI
-# ==========================================
-with tab_personel:
-    st.header("👤 Personel Hesap Alımı Ekranı")
-    st.write("Personel hesap kapama işlemleri ve saha tahsilat verileri.")
-    st.dataframe(df[["Kurye", "Zimmet", "Teslim", "Devir", "Nakit", "Kart"]], use_container_width=True)
-
-# ==========================================
-# 3. F4 ÖDEME LİSTESİ EKRANI
+# 3. TAHSİLAT & F4 ÖDEME LİSTESİ
 # ==========================================
 with tab_f4:
-    st.header("💳 F4 Ödeme Listesi Ekranı")
-    st.write("Günlük nakit ve POS kart tahsilat listesi düzenlemeleri.")
+    st.title("Tahsilat & F4 Ödeme Listesi")
     
-    toplam_nakit = df["Nakit"].sum()
-    toplam_kart = df["Kart"].sum()
-    
-    f4_col1, f4_col2 = st.columns(2)
-    f4_col1.metric("💵 Toplam Nakit Tahsilat", f"{toplam_nakit:,.2f} TL")
-    f4_col2.metric("💳 Toplam POS/Kart Tahsilat", f"{toplam_kart:,.2f} TL")
-    
-    st.dataframe(df[["Kurye", "Nakit", "Kart"]], use_container_width=True)
+    st.dataframe(
+        df[["Kurye", "Zimmet", "Teslim", "Devir", "Nakit", "Kart", "Toplam_Tahsilat"]],
+        use_container_width=True
+    )
