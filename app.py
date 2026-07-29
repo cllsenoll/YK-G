@@ -166,7 +166,6 @@ def get_courier_photo(courier_name):
     for target_dir in search_dirs:
         try:
             files = os.listdir(target_dir)
-            # 1. Aşama: Tam Eşleşme
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -182,7 +181,6 @@ def get_courier_photo(courier_name):
                             except Exception:
                                 pass
             
-            # 2. Aşama: Kısmi Eşleşme
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -227,114 +225,96 @@ def smart_read_file(uploaded_file):
                 continue
 
     try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
+        xl = pd.ExcelFile(io.BytesIO(file_bytes), engine='openpyxl')
+        for sheet_name in xl.sheet_names:
+            df = xl.parse(sheet_name)
+            if df is not None and len(df) > 0 and len(df.columns) > 1:
+                return df
     except Exception:
         pass
 
     try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
+        xl = pd.ExcelFile(io.BytesIO(file_bytes), engine='xlrd')
+        for sheet_name in xl.sheet_names:
+            df = xl.parse(sheet_name)
+            if df is not None and len(df) > 0 and len(df.columns) > 1:
+                return df
     except Exception:
         pass
-
-    for enc in ['utf-8', 'cp1254', 'latin1']:
-        try:
-            dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
-            if dfs and len(dfs) > 0:
-                return dfs[0]
-        except Exception:
-            continue
 
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# 6. AT ZİMMET İZLEME VERİ İŞLEME MOTORU
+# 6. AT ZİMMET İZLEME VERİ İŞLEME MOTORU (GÜNCELLENDİ)
 # ==========================================
 def process_excel_data(df):
     header_idx = 0
     for idx, row in df.iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
-        if "AT ZİMMET PERSONEL" in row_str or "TESLİM EDEN PERSONEL" in row_str or "ZİMMET" in row_str:
+        if "KURYE" in row_str or "ZİMMET" in row_str or "TESLİM" in row_str:
             header_idx = idx
             break
             
-    if header_idx > 0:
+    if header_idx >= 0:
         df.columns = df.iloc[header_idx].astype(str).str.strip()
         df = df.iloc[header_idx + 1:].reset_index(drop=True)
     else:
         df.columns = df.columns.astype(str).str.strip()
 
-    p_zimmet_col, p_teslim_col, kanal_col, aciklama_col = None, None, None, None
+    p_kurye_col, p_zimmet_col, p_teslim_col, p_devir_col = None, None, None, None
+    sms_col, imza_col, ks_col = None, None, None
 
     for col in df.columns:
         c_upper = str(col).upper()
-        if "ZİMMET PERSONEL" in c_upper or "AT ZİMMET" in c_upper:
+        if "KURYE" in c_upper and not p_kurye_col:
+            p_kurye_col = col
+        elif "ZİMMET" in c_upper and not p_zimmet_col:
             p_zimmet_col = col
-        elif "TESLİM EDEN" in c_upper:
+        elif "TESLİM" in c_upper and not p_teslim_col:
             p_teslim_col = col
-        elif "KANAL" in c_upper or "TESLİMAT KANAL" in c_upper:
-            kanal_col = col
-        elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper:
-            aciklama_col = col
+        elif "DEVİR" in c_upper and not p_devir_col:
+            p_devir_col = col
+        elif "SMS" in c_upper and not sms_col:
+            sms_col = col
+        elif "İMZA" in c_upper or "IMZA" in c_upper and not imza_col:
+            imza_col = col
+        elif ("KS" in c_upper or "KONTROL" in c_upper) and not ks_col:
+            ks_col = col
 
-    if not p_zimmet_col:
-        cols_list = list(df.columns)
-        if len(cols_list) > 0: p_zimmet_col = cols_list[0]
-    if not p_teslim_col and len(df.columns) > 1:
-        p_teslim_col = df.columns[1]
+    cols_list = list(df.columns)
+    if not p_kurye_col and len(cols_list) > 0: p_kurye_col = cols_list[0]
 
-    if not p_zimmet_col or not p_teslim_col:
-        return None, ["AT Zimmet Personel Adı", "Teslim Eden Personel"]
+    if not p_kurye_col:
+        return None, ["Kurye"]
 
-    def check_delivery(row):
-        zimmet_p = str(row[p_zimmet_col]).strip().upper()
-        teslim_p = str(row[p_teslim_col]).strip().upper() if p_teslim_col else ""
-        return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
-
-    def get_channel_type(row):
-        kanali = str(row[kanal_col]).strip().upper() if kanal_col else ""
-        aciklama = str(row[aciklama_col]).strip().upper() if aciklama_col else ""
-        
-        if "KONTROL SENDE" in kanali or "POS ENTEGRASYON" in aciklama:
-            return "KS-PE"
-        elif "SMS" in kanali:
-            return "SMS"
-        elif "İMZA" in kanali or "IMZA" in kanali:
-            return "İMZA"
-        return "DİĞER"
-
-    df["Is_Teslim"] = df.apply(check_delivery, axis=1)
-    df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
-
-    personnel_list = df[p_zimmet_col].dropna().unique()
     summary = []
-
-    for person in personnel_list:
-        p_name = str(person).strip()
-        if not p_name or p_name.upper() in ["NAN", "NONE", "TOTAL", "TOPLAM"]:
+    for _, row in df.iterrows():
+        p_name = str(row[p_kurye_col]).strip()
+        if not p_name or p_name.upper() in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENEL TOPLAM"]:
             continue
             
-        p_df = df[df[p_zimmet_col] == person]
-        zimmet_cnt = len(p_df)
+        zimmet_cnt = parse_turkish_float(row[p_zimmet_col]) if p_zimmet_col else 0
+        teslim_cnt = parse_turkish_float(row[p_teslim_col]) if p_teslim_col else 0
+        devir_cnt = parse_turkish_float(row[p_devir_col]) if p_devir_col else 0
         
-        teslim_df = p_df[p_df["Is_Teslim"] == True]
-        teslim_cnt = len(teslim_df)
-        teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
-        
+        if zimmet_cnt == 0 and teslim_cnt > 0:
+            zimmet_cnt = teslim_cnt + devir_cnt
+
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
-        
-        sms_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "SMS"])
-        imza_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "İMZA"])
-        ks_pe_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "KS-PE"])
+
+        sms_val = parse_turkish_float(row[sms_col]) if sms_col else 0
+        imza_val = parse_turkish_float(row[imza_col]) if imza_col else 0
+        ks_val = parse_turkish_float(row[ks_col]) if ks_col else 0
 
         summary.append({
             "Personel": p_name,
-            "Zimmet": zimmet_cnt,
-            "Teslim Edilen": teslim_cnt,
-            "Teslim Edilemeyen": teslim_edilemeyen_cnt,
+            "Zimmet": int(zimmet_cnt),
+            "Teslim Edilen": int(teslim_cnt),
+            "Teslim Edilemeyen": int(devir_cnt),
             "Başarı Oranı": success_rate,
-            "SMS": sms_cnt,
-            "İmza": imza_cnt,
-            "KS-PE": ks_pe_cnt
+            "SMS": int(sms_val),
+            "İmza": int(imza_val),
+            "KS-PE": int(ks_val)
         })
 
     res_df = pd.DataFrame(summary)
@@ -512,14 +492,12 @@ if uploaded_files:
             temp_raw = smart_read_file(file)
             col_names_str = " ".join([str(c).upper() for c in temp_raw.columns]) + " " + " ".join([str(val).upper() for val in temp_raw.iloc[0:5].values.flatten()])
             
-            if "ZİMMET" in col_names_str or "TESLİM EDEN" in col_names_str:
+            if "ZİMMET" in col_names_str or "KURYE" in col_names_str or "TESLİM" in col_names_str or "DEVİR" in col_names_str:
                 parsed_perf, _ = process_excel_data(temp_raw)
-                if parsed_perf is not None:
+                if parsed_perf is not None and not parsed_perf.empty:
                     perf_df = parsed_perf
-            elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
+            if "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
                 account_df = process_personnel_account_data(temp_raw)
-            else:
-                raw_df = temp_raw
         except Exception as e:
             st.error(f"❌ {file.name} okuma hatası: {e}")
 
@@ -577,15 +555,8 @@ if st.session_state.active_tab == "Ana Panel":
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
         
-    elif raw_df is not None:
-        st.success("✅ Dosya başarıyla okundu!")
-        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste. Veriler aşağıda listelenmiştir:")
-        
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
     else:
-        st.info("💡 Sol taraftan **AT ZİMMET İZLEME** dosyanızı yükleyerek kurye performans verilerine erişebilirsiniz.")
+        st.info("💡 Sol taraftan **AT ZİMMET İZLEME** (Kurye Performans) dosyanızı yükleyerek verileri görüntüleyebilirsiniz.")
 
 # ==========================================
 # TAB 2: KURYE PERFORMANS PANELİ
@@ -690,7 +661,6 @@ elif st.session_state.active_tab == "Günlük Hesap":
         edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
         st.session_state.hesap_df = edited_df
 
-        # KASA VE DENGE HESAPLAMA
         st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
         st.subheader("💵 Genel Kasa ve Hesap Dengesi")
 
