@@ -1,6 +1,6 @@
 import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
+import io
 
 # 1. Sayfa Ayarları
 st.set_page_config(
@@ -12,478 +12,328 @@ st.set_page_config(
 
 # 2. OTURUM DURUMU (Session State)
 if 'active_tab' not in st.session_state:
-    st.session_state.active_tab = "Ana Panel"
+    st.session_state.active_tab = "Kurye Performans"
 
-# --- KULLANICI PROFİL BİLGİLERİ ---
 KULLANICI_ISIM = "Celal Şenol"
 KULLANICI_GOREV = "Şube Şefi"
-FOTO_URL = "celal_senol.jpg" 
 
-
-# --- CSS ÖZELLEŞTİRMELERİ (Streamlit Buton Stillerini Ezme) ---
+# --- CSS ÖZELLEŞTİRMELERİ ---
 custom_css = """
 <style>
-    /* Ana Arka Plan */
     .stApp {
         background-color: #070E1E;
         color: #FFFFFF;
     }
-    
-    /* Genel Yazı Renkleri */
     h1, h2, h3, h4, h5, h6, p, span, label {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
-    /* Sol Yan Menü (Sidebar) Arka Planı */
     [data-testid="stSidebar"] {
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
-        padding-top: 1rem !important;
     }
-
-    /* Sidebar Üst Başlık Boşluk Düzenlemesi */
-    .sidebar-header {
-        margin-top: -30px;
-        margin-bottom: 10px;
-    }
-
-    /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN GENEL EŞİT ÖLÇÜ TEMELİ */
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
-        height: 54px !important;
-        min-height: 54px !important;
-        max-height: 54px !important;
+        height: 50px !important;
         border-radius: 12px !important;
-        padding: 0 14px !important;
         font-weight: 700 !important;
-        font-size: 14px !important;
+        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         margin-bottom: 8px !important;
-        transition: all 0.2s ease-in-out !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
     }
 
-    /* 1. BUTON: ANA PANEL -> MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button:focus {
-        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
-    }
-
-    /* 2. BUTON: KURYE PERFORMANS -> TURUNCU */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button:focus {
-        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.4) !important;
-    }
-
-    /* 3. BUTON: SEKRETER HESAP -> BEYAZ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button:focus {
-        background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
-        border: 1px solid #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
-    }
-    
-    /* Beyaz buton üzerindeki metinleri koyu lacivert yap */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button p,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button span {
-        color: #070E1E !important;
-        font-weight: 800 !important;
-    }
-
-    /* 4. BUTON: F4 ÖDEME LİSTESİ -> MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button:focus {
-        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
-    }
-
-    /* HOVER DURUMU */
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        transform: translateY(-2px) !important;
-        filter: brightness(1.15) !important;
-    }
-
-    /* KPI KARTLARI STİLLERİ (İÇ EKRANLAR) */
-    .kpi-card-orange {
-        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%);
-        border-radius: 18px;
-        padding: 16px 20px;
-        color: white;
-        box-shadow: 0 4px 15px rgba(245, 124, 0, 0.25);
-        margin-bottom: 12px;
+    /* PERSONEL PERFORMANS KARTI TASARIMI */
+    .person-card {
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .blue-cards-row {
-        display: flex;
-        gap: 12px;
-        width: 100%;
-        margin-bottom: 12px;
-    }
-
-    .kpi-card-blue {
-        flex: 1;
-        background: linear-gradient(135deg, #0A43A6 0%, #032057 100%);
-        border-radius: 18px;
-        padding: 16px 20px;
-        color: white;
-        box-shadow: 0 4px 15px rgba(10, 67, 166, 0.25);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        min-width: 0;
-    }
-
-    .kpi-card-white {
-        background: linear-gradient(135deg, #FFFFFF 0%, #E0E6ED 100%);
-        border-radius: 18px;
-        padding: 16px 20px;
-        color: #070E1E !important;
-        box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
-        margin-bottom: 15px;
-        border: 1px solid #FFFFFF;
-    }
-
-    .kpi-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .kpi-title-dark {
-        font-size: 13px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.9) !important;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .kpi-title-light {
-        font-size: 13px;
-        font-weight: 700;
-        color: #070E1E !important;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .kpi-icon-right-dark {
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 50%;
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-    }
-
-    .kpi-icon-right-light {
-        background: rgba(7, 14, 30, 0.1);
-        border-radius: 50%;
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-    }
-
-    .kpi-value-dark {
-        font-size: 24px;
-        font-weight: 700;
-        color: #FFFFFF !important;
-    }
-
-    .kpi-value-light {
-        font-size: 24px;
-        font-weight: 800;
-        color: #070E1E !important;
-    }
-
-    /* PROFİL KARTI STİLİ (SOL MENÜ EN ALT) */
-    .user-profile-card {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 16px;
-        padding: 12px 14px;
+        padding: 18px 22px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .person-main-row {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-top: 30px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        justify-content: space-between;
+        gap: 15px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
-
-    .user-profile-img {
-        width: 50px;
-        height: 50px;
+    .profile-section {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 220px;
+    }
+    .avatar-circle {
+        width: 65px;
+        height: 65px;
+        min-width: 65px;
+        min-height: 65px;
         border-radius: 50%;
         object-fit: cover;
         border: 2px solid #F57C00;
+        background-color: #0B172E;
     }
-
-    .user-info-name {
-        font-size: 15px;
+    .person-name {
+        font-size: 16px;
         font-weight: 700;
         color: #FFFFFF !important;
-        line-height: 1.2;
+    }
+    .metric-box {
+        text-align: center;
+        flex: 1;
+    }
+    .metric-title {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.6) !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+    }
+    
+    /* YUVARLAK ÇEMBER GRAFİK ALANI */
+    .chart-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 65px;
+        min-width: 65px;
+    }
+    .chart-label {
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 4px;
+        color: #4CAF50 !important;
     }
 
-    .user-info-role {
+    /* ALT KANAL DETAY ROZETLERİ */
+    .channel-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 12px;
+        padding-top: 2px;
+    }
+    .channel-badge {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 6px 12px;
         font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .badge-value {
+        font-weight: 700;
         color: #F57C00 !important;
-        font-weight: 600;
-        margin-top: 3px;
     }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
+# --- SVG YUVALAK ÇEMBER GRAFİK ÜRETİCİ ---
+def generate_pie_svg(success_rate):
+    """Yeşil ve Kırmızı renklerden oluşan 65x65 px SVG tam çember grafik oluşturur."""
+    rate = max(0, min(100, success_rate))
+    if rate == 100:
+        return f"""
+        <svg width="65" height="65" viewBox="0 0 36 36">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2E7D32" stroke-width="3.8" />
+        </svg>
+        """
+    elif rate == 0:
+        return f"""
+        <svg width="65" height="65" viewBox="0 0 36 36">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#D32F2F" stroke-width="3.8" />
+        </svg>
+        """
+    
+    stroke_dasharray = f"{rate}, {100 - rate}"
+    return f"""
+    <svg width="65" height="65" viewBox="0 0 36 36" style="transform: rotate(-90deg); border-radius: 50%;">
+        <!-- Kırmızı Arka Plan (Teslim Edilemeyen Oran) -->
+        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#D32F2F" stroke-width="3.8" />
+        <!-- Yeşil Ön Plan (Teslim Edilen Oran) -->
+        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2E7D32" stroke-width="3.8" stroke-dasharray="{stroke_dasharray}" />
+    </svg>
+    """
 
 # ==========================================
-# SOL TARAF AÇILIR MENÜ (SIDEBAR)
+# SIDEBAR (DOSYA YÜKLEME VE MENÜ)
 # ==========================================
 with st.sidebar:
-    # 1. DAHA YUKARI ÇEKİLMİŞ MENÜ BAŞLIĞI
-    st.markdown("""
-        <div class="sidebar-header">
-            <h3 style='margin-bottom:2px; padding-top:0px;'>Yurtiçi Kargo</h3>
-            <h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### Yurtiçi Kargo<br><small style='color:#F57C00;'>Görükle Acente</small>", unsafe_allow_html=True)
+    st.write("")
     
-    # 2. DOSYA YÜKLE ALANI (Excel & CSV)
-    uploaded_file = st.file_uploader(
-        "Dosya Yükle", 
-        type=["xlsx", "xls", "csv"],
-        help="Lütfen Excel veya CSV formatında bir dosya seçin."
-    )
+    uploaded_file = st.file_uploader("AT ZİMMET İZLEME Dosyası Yükle", type=["xlsx", "xls", "csv"])
     
-    # Dosya yüklendiyse belleğe alma mantığı
-    uploaded_df = None
-    if uploaded_file is not None:
-        try:
-            if uploaded_file.name.endswith('.csv'):
-                uploaded_df = pd.read_csv(uploaded_file)
-            else:
-                uploaded_df = pd.read_excel(uploaded_file)
-            st.success("Dosya başarıyla yüklendi!")
-        except Exception as e:
-            st.error("Dosya okunamadı!")
-
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:10px; margin-bottom:14px;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # 3. SEKMELER
-    btn_ana = st.button("📊 Ana Panel", key="btn_ana")
-    if btn_ana:
-        st.session_state.active_tab = "Ana Panel"
-
-    btn_kurye = st.button("🏃‍♂️ Kurye Performans", key="btn_kurye")
-    if btn_kurye:
+    if st.button("🏃‍♂️ Kurye Performans"):
         st.session_state.active_tab = "Kurye Performans"
 
-    btn_sekreter = st.button("💼 Sekreter Hesap", key="btn_sekreter")
-    if btn_sekreter:
-        st.session_state.active_tab = "Sekreter Hesap"
-
-    btn_f4 = st.button("💳 F4 Ödeme Listesi", key="btn_f4")
-    if btn_f4:
-        st.session_state.active_tab = "F4 Ödeme Listesi"
-
-    # 4. PROFİL KARTI
-    st.markdown(f"""
-        <div class="user-profile-card">
-            <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol" onerror="this.src='https://ui-avatars.com/api/?name=Celal+Senol&background=F57C00&color=fff'">
-            <div>
-                <div class="user-info-name">{KULLANICI_ISIM}</div>
-                <div class="user-info-role">{KULLANICI_GOREV}</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-
 # ==========================================
-# SAYFA BAŞLIĞI VE TARİH FİLTRESİ
+# VERİ İŞLEME MOTORU (EXCEL PARSER)
 # ==========================================
-col_title, col_date = st.columns([2, 1])
-with col_title:
-    st.subheader(f"☰ {st.session_state.active_tab}")
-
-with col_date:
-    st.date_input("", key="top_date_picker", label_visibility="collapsed")
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-
-# ==========================================
-# EKRAN İÇERİKLERİ
-# ==========================================
-
-if st.session_state.active_tab == "Ana Panel":
+def process_excel_data(df):
+    # Kolon İsimlerini Temizle
+    df.columns = df.columns.str.strip()
     
-    st.markdown("""
-        <div class="kpi-card-orange">
-            <div class="kpi-header">
-                <span class="kpi-title-dark">📦 AT Zimmet</span>
-                <span class="kpi-icon-right-dark">⚙️</span>
-            </div>
-            <div class="kpi-value-dark">1.248</div>
-        </div>
-    """, unsafe_allow_html=True)
+    # Zorunlu Kolon Kontrolü
+    req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
+    for col in req_cols:
+        if col not in df.columns:
+            st.error(f"❌ Excel dosyasında '{col}' sütunu bulunamadı!")
+            return None
 
-    st.markdown("""
-        <div class="blue-cards-row">
-            <div class="kpi-card-blue">
-                <div class="kpi-header">
-                    <span class="kpi-title-dark">📝 Teslim Edildi</span>
-                    <span class="kpi-icon-right-dark">🚚</span>
+    # Açıklama Sütununu Kontrol Et
+    has_aciklama = "Açıklama" in df.columns
+
+    # Mantıksal Gruplamalar
+    def check_delivery(row):
+        zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
+        teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
+        return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
+
+    def get_channel_type(row):
+        kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
+        aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
+        
+        if "KONTROL SENDE" in kanali or "POS ENTEGRASYON" in aciklama:
+            return "KS-PE"
+        elif "SMS" in kanali:
+            return "SMS"
+        elif "İMZA" in kanali or "IMZA" in kanali:
+            return "İMZA"
+        return "DİĞER"
+
+    df["Is_Teslim"] = df.apply(check_delivery, axis=1)
+    df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
+
+    # Personel Bazlı Özet Tablo
+    personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
+    summary = []
+
+    for person in personnel_list:
+        p_name = str(person).strip()
+        if not p_name or p_name.upper() == "NAN":
+            continue
+            
+        p_df = df[df["AT Zimmet Personel Adı"] == person]
+        zimmet_cnt = len(p_df)
+        
+        teslim_df = p_df[p_df["Is_Teslim"] == True]
+        teslim_cnt = len(teslim_df)
+        teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
+        
+        success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
+        
+        # Teslimat kanalları yalnızca Başarılı Teslimatlar üzerinden hesaplanır
+        sms_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "SMS"])
+        imza_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "İMZA"])
+        ks_pe_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "KS-PE"])
+
+        summary.append({
+            "Personel": p_name,
+            "Zimmet": zimmet_cnt,
+            "Teslim Edilen": teslim_cnt,
+            "Teslim Edilemeyen": teslim_edilemeyen_cnt,
+            "Başarı Oranı": success_rate,
+            "SMS": sms_cnt,
+            "İmza": imza_cnt,
+            "KS-PE": ks_pe_cnt
+        })
+
+    return pd.DataFrame(summary)
+
+# ==========================================
+# KURYELER PERFORMANS PANELİ
+# ==========================================
+st.subheader("🏃‍♂️ Kurye Performans Paneli")
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith('.csv'):
+            raw_df = pd.read_csv(uploaded_file)
+        else:
+            raw_df = pd.read_excel(uploaded_file)
+        
+        perf_df = process_excel_data(raw_df)
+    except Exception as e:
+        st.error(f"Excel okunurken bir hata oluştu: {e}")
+        perf_df = None
+else:
+    st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** Excel dosyasını yükleyin.")
+    # Varsayılan Önizleme Verisi
+    perf_df = pd.DataFrame([
+        {"Personel": "AHMET BERKANT ÖKSÜZ", "Zimmet": 150, "Teslim Edilen": 142, "Teslim Edilemeyen": 8, "Başarı Oranı": 94.7, "SMS": 100, "İmza": 30, "KS-PE": 12},
+        {"Personel": "MEHMET YILMAZ", "Zimmet": 120, "Teslim Edilen": 100, "Teslim Edilemeyen": 20, "Başarı Oranı": 83.3, "SMS": 70, "İmza": 20, "KS-PE": 10}
+    ])
+
+if perf_df is not None and not perf_df.empty:
+    
+    # Personelleri Alt Alta Listele
+    for _, row in perf_df.iterrows():
+        p_name = row["Personel"]
+        zimmet = row["Zimmet"]
+        teslim = row["Teslim Edilen"]
+        devir = row["Teslim Edilemeyen"]
+        rate = row["Başarı Oranı"]
+        sms = row["SMS"]
+        imza = row["İmza"]
+        ks_pe = row["KS-PE"]
+        
+        svg_chart = generate_pie_svg(rate)
+        avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true"
+
+        card_html = f"""
+        <div class="person-card">
+            <!-- ÜST SATIR: RESİM, İSİM, ZİMMET, TESLİM, DEVİR, ÇEMBER GRAFİK -->
+            <div class="person-main-row">
+                <div class="profile-section">
+                    <img src="{avatar_url}" class="avatar-circle" alt="{p_name}">
+                    <div class="person-name">{p_name}</div>
                 </div>
-                <div class="kpi-value-dark">1.078</div>
-            </div>
-            <div class="kpi-card-blue">
-                <div class="kpi-header">
-                    <span class="kpi-title-dark">🔄 Teslim Edilemedi</span>
-                    <span class="kpi-icon-right-dark">⚠️</span>
+                <div class="metric-box">
+                    <div class="metric-title">Zimmet Sayısı</div>
+                    <div class="metric-value" style="color: #FFFFFF;">{zimmet}</div>
                 </div>
-                <div class="kpi-value-dark">170</div>
+                <div class="metric-box">
+                    <div class="metric-title">Teslim Edilen</div>
+                    <div class="metric-value" style="color: #4CAF50;">{teslim}</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Teslim Edilemeyen</div>
+                    <div class="metric-value" style="color: #F44336;">{devir}</div>
+                </div>
+                <div class="chart-container">
+                    {svg_chart}
+                    <div class="chart-label">%{rate}</div>
+                </div>
+            </div>
+            
+            <!-- ALT SATIR: KARGO TESLİMAT KANALLARI -->
+            <div class="channel-row">
+                <div class="channel-badge">
+                    <span>📲 SMS:</span>
+                    <span class="badge-value">{sms}</span>
+                </div>
+                <div class="channel-badge">
+                    <span>✍️ İMZA:</span>
+                    <span class="badge-value">{imza}</span>
+                </div>
+                <div class="channel-badge">
+                    <span>🚪 KS-PE:</span>
+                    <span class="badge-value">{ks_pe}</span>
+                </div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-        <div class="kpi-card-white">
-            <div class="kpi-header">
-                <span class="kpi-title-light">👑 Günün Personeli</span>
-                <span class="kpi-icon-right-light">⭐</span>
-            </div>
-            <div class="kpi-value-light">{KULLANICI_ISIM} ({KULLANICI_GOREV})</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("#### Teslimat Oranı")
-    fig_donut = go.Figure(data=[go.Pie(
-        labels=["Teslim Edilen", "Teslim Edilemedi"],
-        values=[1078, 170],
-        hole=0.70,
-        marker_colors=["#0A58CA", "#FF6B00"],
-        textinfo="none"
-    )])
-
-    fig_donut.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color="white"),
-        showlegend=True,
-        height=240,
-        margin=dict(l=10, r=10, t=10, b=10),
-        annotations=[dict(
-            text="<b>%86.4</b>",
-            x=0.5, y=0.5,
-            font_size=28,
-            font_color="white",
-            showarrow=False
-        )]
-    )
-    st.plotly_chart(fig_donut, use_container_width=True)
-
-
-elif st.session_state.active_tab == "Kurye Performans":
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("""
-            <div class="kpi-card-blue">
-                <div class="kpi-title-dark">🏃 Sahadaki Kurye</div>
-                <div class="kpi-value-dark">14 Personel</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-            <div class="kpi-card-orange">
-                <div class="kpi-title-dark">⚡ Sorumlu Şef</div>
-                <div class="kpi-value-dark">{KULLANICI_ISIM}</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown("""
-            <div class="kpi-card-blue">
-                <div class="kpi-title-dark">🎯 Ort. Başarı</div>
-                <div class="kpi-value-dark">%91.2</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("### 🏆 Kurye Performans Tablosu")
-    
-    kurye_data = pd.DataFrame({
-        "Kurye Adı": ["Ahmet Berkant Öksüz", "Mehmet Yılmaz", "Ali Kaya", "Caner Erkin", "Burak Yılmaz"],
-        "Zimmet Sayısı": [150, 130, 125, 110, 95],
-        "Teslim Edilen": [142, 120, 110, 98, 80],
-        "Kalan / İade": [8, 10, 15, 12, 15],
-        "Başarı Oranı (%)": ["%94.6", "%92.3", "%88.0", "%89.0", "%84.2"],
-        "Durum": ["🟢 Harika", "🟢 İyi", "🟡 Orta", "🟢 İyi", "🔴 Riskli"]
-    })
-    st.dataframe(kurye_data, use_container_width=True, hide_index=True)
-
-
-elif st.session_state.active_tab == "Sekreter Hesap":
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("""
-            <div class="kpi-card-orange">
-                <div class="kpi-title-dark">💵 Günlük Nakit Tahsilat</div>
-                <div class="kpi-value-dark">₺ 14.850,00</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown("""
-            <div class="kpi-card-blue">
-                <div class="kpi-title-dark">💳 POS / Kredi Kartı Tahsilat</div>
-                <div class="kpi-value-dark">₺ 32.410,50</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("### 💼 Kasa Hareketleri ve Muhasebe Özeti")
-    
-    hesap_data = pd.DataFrame({
-        "Saat": ["09:15", "10:30", "11:45", "13:20", "15:10"],
-        "İşlem Tipi": ["Nakit Tahsilat", "POS Tahsilat", "Kurye Avans", "Nakit Tahsilat", "POS Tahsilat"],
-        "Açıklama": ["Şube Alıcı Ödemeli", "Kurye Gün Sonu", "Yakıt Ödemesi", "Şube Teslimat", "Saha Tahsilatı"],
-        "Tutar": ["₺ 1.250", "₺ 8.400", "-₺ 500", "₺ 3.100", "₺ 12.150"],
-        "Onaylayan Şef": [KULLANICI_ISIM, KULLANICI_ISIM, KULLANICI_ISIM, KULLANICI_ISIM, KULLANICI_ISIM]
-    })
-    st.dataframe(hesap_data, use_container_width=True, hide_index=True)
-
-
-elif st.session_state.active_tab == "F4 Ödeme Listesi":
-    st.markdown("""
-        <div class="kpi-card-white">
-            <div class="kpi-header">
-                <span class="kpi-title-light">💳 Bekleyen F4 Tahsilat & Ödemeler</span>
-                <span class="kpi-icon-right-light">💰</span>
-            </div>
-            <div class="kpi-value-light">₺ 18.650,00 (48 Kargo)</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### 💳 F4 Ödeme ve Tahsilat Takip Listesi")
-    
-    f4_data = pd.DataFrame({
-        "Takip No": ["TR8912341", "TR8912342", "TR8912343", "TR8912344", "TR8912345"],
-        "Müşteri / Alıcı": ["Tekno A.Ş.", "Mustafa Demir", "Aysun Çelik", "Kaya Lojistik", "Elif Şahin"],
-        "Ödeme Tipi": ["Gönderici Ödemeli", "Alıcı Ödemeli", "Kapıda Ödeme", "Alıcı Ödemeli", "Kapıda Ödeme"],
-        "Tutar": ["₺ 450,00", "₺ 1.200,00", "₺ 850,00", "₺ 3.400,00", "₺ 620,00"],
-        "Ödeme Durumu": ["🟡 Bekliyor", "🟢 Tahsil Edildi", "🔴 Problem/İade", "🟡 Bekliyor", "🟢 Tahsil Edildi"]
-    })
-    st.dataframe(f4_data, use_container_width=True, hide_index=True)
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
