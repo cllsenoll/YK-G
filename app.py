@@ -35,15 +35,23 @@ custom_css = """
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* 2. MAVİ KARTLAR (Orta Satır Yan Yana - Teslim Edildi / Teslim Edilemedi) */
+    /* 2. MAVİ KARTLAR (Orta Satır Yan Yana) */
+    .blue-cards-row {
+        display: flex;
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+
     .kpi-card-blue {
+        flex: 1;
         background: linear-gradient(135deg, #0A43A6 0%, #032057 100%);
         border-radius: 18px;
         padding: 16px 20px;
         color: white;
         box-shadow: 0 4px 15px rgba(10, 67, 166, 0.25);
-        margin-bottom: 12px;
         border: 1px solid rgba(255, 255, 255, 0.08);
+        min-width: 0; /* İçeriğin esnemesini ve kırılmasını engeller */
     }
 
     /* 3. BEYAZ KART (En Alt - Günün Personeli) */
@@ -72,6 +80,9 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .kpi-title-light {
@@ -88,6 +99,7 @@ custom_css = """
         border-radius: 50%;
         width: 28px;
         height: 28px;
+        min-width: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -99,6 +111,7 @@ custom_css = """
         border-radius: 50%;
         width: 28px;
         height: 28px;
+        min-width: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -144,7 +157,7 @@ COLLAGE_CARDS = {
         "style": "orange"
     },
     
-    # 2. ORTA SATIR (2 Tane Mavi Kart - Yan Yana)
+    # 2. ORTA SATIR (2 Tane Mavi Kart - YAN YANA SABİT)
     "middle_left": {
         "title": "Teslim Edildi",
         "left_icon": "📝",
@@ -165,7 +178,7 @@ COLLAGE_CARDS = {
         "title": "Günün Personeli",
         "left_icon": "👑",
         "right_icon": "⭐",
-        "value": "Ahmet Berkant Öksüz",  # En yüksek teslimatı yapan kurye buraya aktarılacak
+        "value": "Ahmet Berkant Öksüz",
         "style": "white"
     }
 }
@@ -213,33 +226,29 @@ st.markdown(f"""
 
 
 # ------------------------------------------
-# 2. ORTA SATIR (2 KART YAN YANA - MAVİ: Teslim Edildi & Teslim Edilemedi)
+# 2. ORTA SATIR (2 KART YAN YANA KESİN SABİT - MAVİ)
 # ------------------------------------------
-mid_col1, mid_col2 = st.columns(2)
+card_m_left = COLLAGE_CARDS["middle_left"]
+card_m_right = COLLAGE_CARDS["middle_right"]
 
-with mid_col1:
-    card_m_left = COLLAGE_CARDS["middle_left"]
-    st.markdown(f"""
-        <div class="kpi-card-{card_m_left['style']}">
+st.markdown(f"""
+    <div class="blue-cards-row">
+        <div class="kpi-card-blue">
             <div class="kpi-header">
                 <span class="kpi-title-dark">{card_m_left['left_icon']} {card_m_left['title']}</span>
                 <span class="kpi-icon-right-dark">{card_m_left['right_icon']}</span>
             </div>
             <div class="kpi-value-dark">{card_m_left['value']}</div>
         </div>
-    """, unsafe_allow_html=True)
-
-with mid_col2:
-    card_m_right = COLLAGE_CARDS["middle_right"]
-    st.markdown(f"""
-        <div class="kpi-card-{card_m_right['style']}">
+        <div class="kpi-card-blue">
             <div class="kpi-header">
                 <span class="kpi-title-dark">{card_m_right['left_icon']} {card_m_right['title']}</span>
                 <span class="kpi-icon-right-dark">{card_m_right['right_icon']}</span>
             </div>
             <div class="kpi-value-dark">{card_m_right['value']}</div>
         </div>
-    """, unsafe_allow_html=True)
+    </div>
+""", unsafe_allow_html=True)
 
 
 # ------------------------------------------
