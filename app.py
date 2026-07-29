@@ -20,7 +20,7 @@ KULLANICI_GOREV = "Şube Şefi"
 FOTO_URL = "celal_senol.jpg" 
 
 
-# --- CSS ÖZELLEŞTİRMELERİ (Streamlit Buton Stillerini Ezme) ---
+# --- CSS ÖZELLEŞTİRMELERİ ---
 custom_css = """
 <style>
     /* Ana Arka Plan */
@@ -41,81 +41,75 @@ custom_css = """
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN GENEL EŞİT ÖLÇÜ TEMELİ */
-    [data-testid="stSidebar"] div.stButton > button {
+    /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN GENEL TEMEL */
+    [data-testid="stSidebar"] button {
         width: 100% !important;
-        height: 54px !important;
-        min-height: 54px !important;
-        max-height: 54px !important;
+        height: 52px !important;
+        min-height: 52px !important;
         border-radius: 12px !important;
-        padding: 0 14px !important;
+        padding: 0 16px !important;
         font-weight: 700 !important;
         font-size: 14px !important;
         margin-bottom: 8px !important;
-        transition: all 0.2s ease-in-out !important;
+        border: none !important;
         display: flex !important;
         align-items: center !important;
         justify-content: flex-start !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        transition: transform 0.15s ease, filter 0.15s ease !important;
     }
 
-    /* 1. BUTON: ANA PANEL -> MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button:focus {
-        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
+    /* 1. BUTON: ANA PANEL -> Yurtiçi Laciverti */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) button {
+        background: linear-gradient(135deg, #0B2545 0%, #134074 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
+        box-shadow: 0 4px 10px rgba(11, 37, 69, 0.5) !important;
     }
 
-    /* 2. BUTON: KURYE PERFORMANS -> TURUNCU */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button:focus {
-        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
+    /* 2. BUTON: KURYE PERFORMANS -> Yurtiçi Laciverti */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) button {
+        background: linear-gradient(135deg, #0B2545 0%, #134074 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.4) !important;
+        box-shadow: 0 4px 10px rgba(11, 37, 69, 0.5) !important;
     }
 
-    /* 3. BUTON: SEKRETER HESAP -> BEYAZ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button:focus {
-        background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
-        border: 1px solid #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+    /* 3. BUTON: SEKRETER HESAP -> TURUNCU (Yurtiçi Sarısı/Turuncusu) */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button {
+        background: linear-gradient(135deg, #FF6B00 0%, #FF8800 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        box-shadow: 0 4px 10px rgba(255, 107, 0, 0.4) !important;
     }
     
-    /* Beyaz buton üzerindeki metinleri koyu lacivert yap */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button p,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button span {
-        color: #070E1E !important;
+    /* Turuncu Buton Üzerindeki Metin Rengi */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button p,
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button span {
+        color: #FFFFFF !important;
         font-weight: 800 !important;
     }
 
-    /* 4. BUTON: F4 ÖDEME LİSTESİ -> MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button:focus {
-        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
+    /* 4. BUTON: F4 ÖDEME LİSTESİ -> Yurtiçi Laciverti */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) button {
+        background: linear-gradient(135deg, #0B2545 0%, #134074 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
+        box-shadow: 0 4px 10px rgba(11, 37, 69, 0.5) !important;
     }
 
-    /* HOVER DUMUMU */
-    [data-testid="stSidebar"] div.stButton > button:hover {
+    /* HOVER DURUMU */
+    [data-testid="stSidebar"] button:hover {
         transform: translateY(-2px) !important;
         filter: brightness(1.15) !important;
     }
 
-    /* KPI KARTLARI STİLLERİ (İÇ EKRANLAR) */
+    /* KPI KARTLARI STİLLERİ */
     .kpi-card-orange {
-        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%);
+        background: linear-gradient(135deg, #FF6B00 0%, #FF8800 100%);
         border-radius: 18px;
         padding: 16px 20px;
         color: white;
-        box-shadow: 0 4px 15px rgba(245, 124, 0, 0.25);
+        box-shadow: 0 4px 15px rgba(255, 107, 0, 0.25);
         margin-bottom: 12px;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
@@ -129,20 +123,20 @@ custom_css = """
 
     .kpi-card-blue {
         flex: 1;
-        background: linear-gradient(135deg, #0A43A6 0%, #032057 100%);
+        background: linear-gradient(135deg, #0B2545 0%, #134074 100%);
         border-radius: 18px;
         padding: 16px 20px;
         color: white;
-        box-shadow: 0 4px 15px rgba(10, 67, 166, 0.25);
+        box-shadow: 0 4px 15px rgba(11, 37, 69, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.08);
         min-width: 0;
     }
 
     .kpi-card-white {
-        background: linear-gradient(135deg, #FFFFFF 0%, #E0E6ED 100%);
+        background: #FFFFFF;
         border-radius: 18px;
         padding: 16px 20px;
-        color: #070E1E !important;
+        color: #0B2545 !important;
         box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
         margin-bottom: 15px;
         border: 1px solid #FFFFFF;
@@ -167,7 +161,7 @@ custom_css = """
     .kpi-title-light {
         font-size: 13px;
         font-weight: 700;
-        color: #070E1E !important;
+        color: #0B2545 !important;
         display: flex;
         align-items: center;
         gap: 6px;
@@ -185,7 +179,7 @@ custom_css = """
     }
 
     .kpi-icon-right-light {
-        background: rgba(7, 14, 30, 0.1);
+        background: rgba(11, 37, 69, 0.1);
         border-radius: 50%;
         width: 28px;
         height: 28px;
@@ -204,10 +198,10 @@ custom_css = """
     .kpi-value-light {
         font-size: 24px;
         font-weight: 800;
-        color: #070E1E !important;
+        color: #0B2545 !important;
     }
 
-    /* PROFİL KARTI STİLİ (SOL MENÜ EN ALT) */
+    /* PROFİL KARTI STİLİ */
     .user-profile-card {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -225,7 +219,7 @@ custom_css = """
         height: 50px;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #F57C00;
+        border: 2px solid #FF6B00;
     }
 
     .user-info-name {
@@ -237,7 +231,7 @@ custom_css = """
 
     .user-info-role {
         font-size: 12px;
-        color: #F57C00 !important;
+        color: #FF6B00 !important;
         font-weight: 600;
         margin-top: 3px;
     }
@@ -251,30 +245,26 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # ==========================================
 with st.sidebar:
     # 1. MENÜ BAŞLIĞI
-    st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#FF6B00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER (Sırasıyla: 1-Mavi, 2-Turuncu, 3-Beyaz, 4-Mavi)
-    btn_ana = st.button("📊 Ana Panel", key="btn_ana")
-    if btn_ana:
+    # 2. SEKMELER
+    if st.button("📊 Ana Panel", key="btn_ana"):
         st.session_state.active_tab = "Ana Panel"
 
-    btn_kurye = st.button("🏃‍♂️ Kurye Performans", key="btn_kurye")
-    if btn_kurye:
+    if st.button("🏃‍♂️ Kurye Performans", key="btn_kurye"):
         st.session_state.active_tab = "Kurye Performans"
 
-    btn_sekreter = st.button("💼 Sekreter Hesap", key="btn_sekreter")
-    if btn_sekreter:
+    if st.button("💼 Sekreter Hesap", key="btn_sekreter"):
         st.session_state.active_tab = "Sekreter Hesap"
 
-    btn_f4 = st.button("💳 F4 Ödeme Listesi", key="btn_f4")
-    if btn_f4:
+    if st.button("💳 F4 Ödeme Listesi", key="btn_f4"):
         st.session_state.active_tab = "F4 Ödeme Listesi"
 
-    # 3. PROFİL KARTI (EN ALT KISIMDA)
+    # 3. PROFİL KARTI
     st.markdown(f"""
         <div class="user-profile-card">
-            <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol" onerror="this.src='https://ui-avatars.com/api/?name=Celal+Senol&background=F57C00&color=fff'">
+            <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol" onerror="this.src='https://ui-avatars.com/api/?name=Celal+Senol&background=FF6B00&color=fff'">
             <div>
                 <div class="user-info-name">{KULLANICI_ISIM}</div>
                 <div class="user-info-role">{KULLANICI_GOREV}</div>
@@ -346,7 +336,7 @@ if st.session_state.active_tab == "Ana Panel":
         labels=["Teslim Edilen", "Teslim Edilemedi"],
         values=[1078, 170],
         hole=0.70,
-        marker_colors=["#0A58CA", "#FF6B00"],
+        marker_colors=["#0B2545", "#FF6B00"],
         textinfo="none"
     )])
 
