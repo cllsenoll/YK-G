@@ -3,6 +3,9 @@ import pandas as pd
 import io
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+import base64
+import unicodedata
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -67,10 +70,11 @@ custom_css = """
         gap: 12px;
     }
     .avatar-circle {
-        width: 58px;
-        height: 58px;
+        width: 62px;
+        height: 62px;
         border-radius: 50%;
         border: 2px solid #F57C00;
+        object-fit: cover;
         background-color: #0B172E;
     }
     .person-name {
@@ -108,13 +112,51 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
+# İSİM METNİ OTOMATİK NORMALİZASYON FONKSİYONU
+# ==========================================
+def normalize_name(name_str):
+    """Metin karşılaştırmalarında büyük/küçük harf ve Türkçe karakter farkını ortadan kaldırır."""
+    if not name_str:
+        return ""
+    name_str = str(name_str).strip().upper()
+    replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
+    for search, replace in replacements.items():
+        name_str = name_str.replace(search, replace)
+    return name_str
+
+# ==========================================
+# OTOMATİK KURYE FOTOĞRAFI ALMA (Sadece Kurye Panelinde Kullanılır)
+# ==========================================
+def get_courier_photo(courier_name, folder_path="kuryeler"):
+    """
+    'kuryeler' klasöründeki dosyalarla kurye ismini eşleştirir.
+    Eğer fotoğraf yoksa varsayılan renkli avatar üretir.
+    """
+    norm_courier = normalize_name(courier_name)
+    
+    if os.path.exists(folder_path):
+        for file in os.listdir(folder_path):
+            file_name_without_ext = os.path.splitext(file)[0]
+            if normalize_name(file_name_without_ext) == norm_courier:
+                full_path = os.path.join(folder_path, file)
+                ext = os.path.splitext(file)[1].lower().replace('.', '')
+                if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                    try:
+                        with open(full_path, "rb") as image_file:
+                            encoded_string = base64.b64encode(image_file.read()).decode()
+                            return f"data:image/{ext};base64,{encoded_string}"
+                    except Exception:
+                        pass
+                        
+    # Fotoğraf bulunamazsa fallback varsayılan avatar
+    return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
+
+# ==========================================
 # AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
 # ==========================================
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-    filename = str(uploaded_file.name).lower()
 
-    # A) CSV / Metin Formatları Denemesi
     encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
     separators = [';', ',', '\t', None]
 
@@ -134,7 +176,6 @@ def smart_read_file(uploaded_file):
             except Exception:
                 continue
 
-    # B) Gerçek Excel Formatları Denemesi (.xlsx / .xls)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
     except Exception:
@@ -145,7 +186,6 @@ def smart_read_file(uploaded_file):
     except Exception:
         pass
 
-    # C) HTML Tablosu Şeklindeki Süslü Excel Çıktıları
     for enc in ['utf-8', 'cp1254', 'latin1']:
         try:
             dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
@@ -224,7 +264,6 @@ def process_excel_data(df):
 
     res_df = pd.DataFrame(summary)
     if not res_df.empty:
-        # Sıralamanın 1'den başlaması için index ayarlanıyor
         res_df.index = range(1, len(res_df) + 1)
         
     return res_df, None
@@ -341,7 +380,7 @@ if st.session_state.active_tab == "Ana Panel":
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
 
 # ==========================================
-# TAB 2: KURYE PERFORMANS PANELİ
+# TAB 2: KURYE PERFORMANS PANELİ (ÖZEL PROFiL RESMİ KULLANIMI)
 # ==========================================
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
@@ -349,8 +388,7 @@ elif st.session_state.active_tab == "Kurye Performans":
     if perf_df is not None and not perf_df.empty:
         st.success(f"✅ AT ZİMMET İZLEME raporu başarıyla işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
         
-        # Kurye Kartları Döngüsü
-        for _, row in perf_df.iterrows():
+        for idx, row in perf_df.iterrows():
             p_name = row["Personel"]
             zimmet = row["Zimmet"]
             teslim = row["Teslim Edilen"]
@@ -360,7 +398,8 @@ elif st.session_state.active_tab == "Kurye Performans":
             imza = row["İmza"]
             ks_pe = row["KS-PE"]
 
-            avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
+            # Fotoğraf SADECE bu sekmeye özel olarak klasörden otomatik çekiliyor
+            avatar_url = get_courier_photo(p_name)
 
             card_html = f"""
             <div class="person-card notranslate">
@@ -397,13 +436,6 @@ elif st.session_state.active_tab == "Kurye Performans":
             </div>
             """
             st.markdown(card_html, unsafe_allow_html=True)
-            
-        # KARTLARIN EN ALTINA EKLENEN PERSONEL TESLİMAT KANALLARI TABLOSU
-        st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.1);'><br>", unsafe_allow_html=True)
-        st.subheader("📋 Personel Teslimat Kanalları Özet Tablosu")
-        
-        channel_table = perf_df[["Personel", "Teslim Edilen", "SMS", "İmza", "KS-PE"]]
-        st.dataframe(channel_table, use_container_width=True)
 
     else:
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
