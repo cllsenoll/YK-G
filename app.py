@@ -132,7 +132,6 @@ def clean_string(text):
     return text
 
 def parse_turkish_float(val):
-    """Türkçe Excel para/sayı formatlarını (1.250,50 -> 1250.50) tam çeviren fonksiyon"""
     if pd.isna(val) or val is None:
         return 0.0
     if isinstance(val, (int, float)):
@@ -300,10 +299,9 @@ def process_excel_data(df):
     return res_df, None
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER (TAM HASSASİYETLİ)
+# PERSONEL HESAP ALIMI EKRANI PARSER
 # ==========================================
 def process_personnel_account_data(df):
-    # Eğer Excel'de ilk satırlar başlık bilgisi ise gerçek sütun satırını bul
     header_idx = 0
     for idx, row in df.iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
@@ -317,13 +315,11 @@ def process_personnel_account_data(df):
     else:
         df.columns = df.columns.astype(str).str.strip()
 
-    # "Açıklama" içeren sütunları temizle
     cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in str(c).upper() or "ACIKLAMA" in str(c).upper()]
     df = df.drop(columns=cols_to_drop, errors='ignore')
 
     p_col, ft_col, odeme_col, banka_col = None, None, None, None
 
-    # Sütun Yakalama Esnek Mantığı
     for col in df.columns:
         c_upper = str(col).upper()
         if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
@@ -335,7 +331,6 @@ def process_personnel_account_data(df):
         elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
             banka_col = col
 
-    # Eğer isimle tam eşleşmediyse sıralı sütun ataması yap
     cols_list = list(df.columns)
     if not p_col and len(cols_list) > 0: p_col = cols_list[0]
     if not ft_col and len(cols_list) > 1: ft_col = cols_list[1]
@@ -347,7 +342,6 @@ def process_personnel_account_data(df):
         raw_p_name = str(row[p_col]).strip() if p_col else ""
         c_p_name = clean_string(raw_p_name)
         
-        # Filtreleme: Boş ve Toplam satırlarını ele
         if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
             continue
             
@@ -365,7 +359,6 @@ def process_personnel_account_data(df):
 
     temp_df = pd.DataFrame(parsed_rows)
 
-    # SABİT ÖNCELİKLİ PERSONEL LİSTESİ
     priority_list = [
         "HATİCE KÜBRA IŞIK",
         "ALATTİN CEBECİ",
@@ -380,18 +373,15 @@ def process_personnel_account_data(df):
     final_rows = []
     processed_clean_names = set()
 
-    # 1. Sabit Liste Eşleştirme (Birebir veya Kısmi İsim Yakalama)
     for fixed_name in priority_list:
         clean_fixed = clean_string(fixed_name)
         matched_row = None
         
         if not temp_df.empty:
-            # Tam eşleşme ara
             exact_match = temp_df[temp_df["Clean_Name"] == clean_fixed]
             if not exact_match.empty:
                 matched_row = exact_match.iloc[0]
             else:
-                # İsim içerme eşleşmesi ara (Örn: Hatice Kübra)
                 contains_match = temp_df[temp_df["Clean_Name"].apply(lambda x: clean_fixed in x or x in clean_fixed)]
                 if not contains_match.empty:
                     matched_row = contains_match.iloc[0]
@@ -412,7 +402,6 @@ def process_personnel_account_data(df):
                 "Banka/ATM": 0.0,
             })
 
-    # 2. Excel'de Olup Sabit Listede Olmayan Yeni Personelleri Sona Ekle
     if not temp_df.empty:
         for _, row in temp_df.iterrows():
             c_name = row["Clean_Name"]
@@ -608,7 +597,7 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: GÜNLÜK HESAP (TÜRKÇE PARSE DÜZELTİLMİŞ)
+# TAB 3: GÜNLÜK HESAP
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
@@ -674,10 +663,11 @@ elif st.session_state.active_tab == "Günlük Hesap":
             )
             st.session_state.kasa_miktari = kasa_val
 
+        # Güncellenen Kasa Durum Mantığı (Kasa > Toplam Hesap ise AÇIK)
         kasa_fark = kasa_val - toplam_hesap
 
         with col3:
-            if kasa_fark > 0:
+            if kasa_val > toplam_hesap:
                 durum_metni = "AÇIK"
                 st.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta=f"Durum: {durum_metni}", delta_color="inverse")
                 st.error(f"🚨 Kasa {kasa_fark:,.2f} ₺ **{durum_metni}** veriyor!")
