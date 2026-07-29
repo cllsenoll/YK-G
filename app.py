@@ -166,32 +166,58 @@ def generate_pie_svg(success_rate):
     """
 
 # ==========================================
-# SIDEBAR (DOSYA YÜKLEME VE MENÜ)
+# GÜVENLİ DOSYA OKUMA MOTORU (EXCEL / CSV HANDLER)
 # ==========================================
-with st.sidebar:
-    st.markdown("### Yurtiçi Kargo<br><small style='color:#F57C00;'>Görükle Acente</small>", unsafe_allow_html=True)
-    st.write("")
-    
-    uploaded_file = st.file_uploader("AT ZİMMET İZLEME Dosyası Yükle", type=["xlsx", "xls", "csv"])
-    
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-    
-    if st.button("🏃‍♂️ Kurye Performans"):
-        st.session_state.active_tab = "Kurye Performans"
+def load_uploaded_file(uploaded_file):
+    file_bytes = uploaded_file.read()
+    file_name = uploaded_file.name.lower()
+
+    # 1. XLSX / OpenPyXL Denemesi
+    try:
+        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
+    except Exception:
+        pass
+
+    # 2. XLS / XLRD Denemesi (Eski Excel Biçimleri)
+    try:
+        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
+    except Exception:
+        pass
+
+    # 3. HTML Tablosu Şeklindeki Excel Raporları
+    try:
+        dfs = pd.read_html(io.BytesIO(file_bytes))
+        if dfs:
+            return dfs[0]
+    except Exception:
+        pass
+
+    # 4. CSV Fallback
+    try:
+        return pd.read_csv(io.BytesIO(file_bytes), encoding='utf-8')
+    except Exception:
+        try:
+            return pd.read_csv(io.BytesIO(file_bytes), encoding='latin1', sep=';')
+        except Exception:
+            pass
+
+    raise ValueError("Yüklenen dosya biçimi okunamadı. Lütfen geçerli bir .xlsx, .xls veya .csv dosyası yükleyin.")
 
 # ==========================================
 # VERİ İŞLEME MOTORU (EXCEL PARSER)
 # ==========================================
 def process_excel_data(df):
     # Kolon İsimlerini Temizle
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.astype(str).str.strip()
     
     # Zorunlu Kolon Kontrolü
     req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
-    for col in req_cols:
-        if col not in df.columns:
-            st.error(f"❌ Excel dosyasında '{col}' sütunu bulunamadı!")
-            return None
+    missing_cols = [col for col in req_cols if col not in df.columns]
+    
+    if missing_cols:
+        st.error(f"❌ Excel dosyasında şu sütunlar bulunamadı: {', '.join(missing_cols)}")
+        st.write("📌 **Dosyanızda Bulunan Sütunlar:**", list(df.columns))
+        return None
 
     # Açıklama Sütununu Kontrol Et
     has_aciklama = "Açıklama" in df.columns
@@ -254,24 +280,35 @@ def process_excel_data(df):
     return pd.DataFrame(summary)
 
 # ==========================================
+# SIDEBAR (DOSYA YÜKLEME VE MENÜ)
+# ==========================================
+with st.sidebar:
+    st.markdown("### Yurtiçi Kargo<br><small style='color:#F57C00;'>Görükle Acente</small>", unsafe_allow_html=True)
+    st.write("")
+    
+    uploaded_file = st.file_uploader("AT ZİMMET İZLEME Dosyası Yükle", type=["xlsx", "xls", "csv"])
+    
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    
+    if st.button("🏃‍♂️ Kurye Performans"):
+        st.session_state.active_tab = "Kurye Performans"
+
+# ==========================================
 # KURYELER PERFORMANS PANELİ
 # ==========================================
 st.subheader("🏃‍♂️ Kurye Performans Paneli")
 
+perf_df = None
+
 if uploaded_file is not None:
     try:
-        if uploaded_file.name.endswith('.csv'):
-            raw_df = pd.read_csv(uploaded_file)
-        else:
-            raw_df = pd.read_excel(uploaded_file)
-        
+        raw_df = load_uploaded_file(uploaded_file)
         perf_df = process_excel_data(raw_df)
     except Exception as e:
-        st.error(f"Excel okunurken bir hata oluştu: {e}")
-        perf_df = None
+        st.error(f"Excel/Dosya okunurken hata oluştu: {e}")
 else:
-    st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** Excel dosyasını yükleyin.")
-    # Varsayılan Önizleme Verisi
+    st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
+    # Örnek Önizleme Verisi
     perf_df = pd.DataFrame([
         {"Personel": "AHMET BERKANT ÖKSÜZ", "Zimmet": 150, "Teslim Edilen": 142, "Teslim Edilemeyen": 8, "Başarı Oranı": 94.7, "SMS": 100, "İmza": 30, "KS-PE": 12},
         {"Personel": "MEHMET YILMAZ", "Zimmet": 120, "Teslim Edilen": 100, "Teslim Edilemeyen": 20, "Başarı Oranı": 83.3, "SMS": 70, "İmza": 20, "KS-PE": 10}
