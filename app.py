@@ -1,135 +1,191 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import io
+import plotly.express as px
+import plotly.graph_objects as go
 
-# 1. SAYFA AYARLARI
+# 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
-    page_title="Yurtiçi Kargo Görükle Acente",
+    page_title="Görükle Acente - Performance Dashboard",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 2. OTURUM DURUMU
+# 2. OTURUM DURUMU (Session State)
 if 'active_tab' not in st.session_state:
-    st.session_state.active_tab = "Kurye Performans"
+    st.session_state.active_tab = "Ana Panel"
 
-# --- CSS ÖZELLEŞTİRMELERİ ---
+KULLANICI_ISIM = "Celal ŞENOL"
+KULLANICI_GOREV = "Şube Şefi"
+
+# --- CSS VE TRANSLATE KORUMA KODLARI ---
 custom_css = """
 <style>
+    /* Google Translate DOM Bozma Engeli */
+    .notranslate {
+        translate: no !important;
+    }
+    
     .stApp {
         background-color: #070E1E;
         color: #FFFFFF;
     }
     h1, h2, h3, h4, h5, h6, p, span, label {
         color: #FFFFFF !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
+    
+    /* SIDEBAR STİLİ */
     [data-testid="stSidebar"] {
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
-        height: 50px !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
+        height: 48px !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        margin-bottom: 8px !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        margin-bottom: 6px !important;
+        text-align: left !important;
+        padding-left: 15px !important;
+    }
+    [data-testid="stSidebar"] div.stButton > button:hover {
+        background: linear-gradient(135deg, #0D6EFD 0%, #0A58CA 100%) !important;
+        border-color: #F57C00 !important;
+    }
+
+    /* KART KONTENYERI */
+    .person-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    .profile-section {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .avatar-circle {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        border: 2px solid #F57C00;
+        background-color: #0B172E;
+    }
+    .person-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #FFFFFF !important;
+    }
+    .metric-title {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5) !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+    }
+    .metric-value {
+        font-size: 19px;
+        font-weight: 700;
+    }
+    .channel-badge {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 12px;
+        display: inline-block;
+        margin-right: 8px;
+        margin-top: 8px;
+    }
+    .badge-val {
+        font-weight: 700;
+        color: #F57C00 !important;
     }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# AKILLI DOSYA OKUMA MOTORU (HTML/XML/CSV/EXCEL)
+# GÜVENLİ DOSYA OKUMA MOTORU (HTML/XML/CSV/EXCEL)
 # ==========================================
 def load_uploaded_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-    errors = []
 
-    # 1. HTML Tablo Denemesi (Sistem raporları genelde HTML tablosudur)
+    # 1. HTML Tablosu Şeklindeki Excel Çıktıları
     try:
         dfs = pd.read_html(io.BytesIO(file_bytes), encoding='utf-8')
         if dfs and len(dfs) > 0:
             return dfs[0]
-    except Exception as e:
-        errors.append(f"HTML (utf-8): {e}")
+    except Exception:
+        pass
 
     try:
         dfs = pd.read_html(io.BytesIO(file_bytes), encoding='latin1')
         if dfs and len(dfs) > 0:
             return dfs[0]
-    except Exception as e:
-        errors.append(f"HTML (latin1): {e}")
+    except Exception:
+        pass
 
-    # 2. XLSX (OpenPyXL)
+    # 2. OpenPyXL (XLSX)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
-    except Exception as e:
-        errors.append(f"OpenPyXL: {e}")
+    except Exception:
+        pass
 
-    # 3. XLS (XLRD)
+    # 3. XLRD (Eski XLS)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
-    except Exception as e:
-        errors.append(f"XLRD: {e}")
+    except Exception:
+        pass
 
-    # 4. CSV - Noktalı Virgül (Sistem çıktıları genelde böyledir)
+    # 4. Noktalı Virgül Ayırmalı CSV
     try:
         return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='utf-8')
-    except Exception as e:
-        errors.append(f"CSV (; utf-8): {e}")
+    except Exception:
+        pass
 
     try:
         return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='latin1')
-    except Exception as e:
-        errors.append(f"CSV (; latin1): {e}")
+    except Exception:
+        pass
 
-    # 5. CSV - Virgül
+    # 5. Standart Virgül Ayırmalı CSV
     try:
-        return pd.read_csv(io.BytesIO(file_bytes), sep=',', encoding='utf-8')
-    except Exception as e:
-        errors.append(f"CSV (, utf-8): {e}")
+        return pd.read_csv(io.BytesIO(file_bytes), encoding='utf-8')
+    except Exception:
+        pass
 
-    # 6. CSV - Tab ile ayrılmış (TSV)
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), sep='\t', encoding='utf-8')
-    except Exception as e:
-        errors.append(f"TSV (utf-8): {e}")
-
-    # Hiçbiri çalışmazsa hataları göster
-    error_msg = " | ".join(errors)
-    raise ValueError(f"Dosya hiçbir yöntemle okunamadı. Detaylar: {error_msg}")
+    raise ValueError("Dosya formatı okunamadı. Lütfen geçerli bir Excel (.xlsx / .xls) veya CSV raporu yükleyin.")
 
 # ==========================================
-# VERİ İŞLEME MOTORU (EXCEL PARSER)
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU
 # ==========================================
 def process_excel_data(df):
-    # Kolon İsimlerini Temizle
     df.columns = df.columns.astype(str).str.strip()
     
-    # Zorunlu Kolon Kontrolü
     req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
     missing_cols = [col for col in req_cols if col not in df.columns]
     
     if missing_cols:
-        st.error(f"❌ Excel/Rapor dosyasında şu sütunlar bulunamadı: {', '.join(missing_cols)}")
-        st.info(f"📋 Tespit Edilen Sütunlar: {list(df.columns)}")
+        st.error(f"❌ Yüklenen dosyada şu eksik sütunlar var: {', '.join(missing_cols)}")
+        st.info(f"📋 Dosyadaki Mevcut Sütunlar: {list(df.columns)}")
         return None
 
     has_aciklama = "Açıklama" in df.columns
 
-    # Teslim Mantığı: AT Zimmet Personel Adı == Teslim Eden Personel
     def check_delivery(row):
         zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
         teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
         return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
 
-    # Kanal Mantığı: Kontrol Sende veya POS Entegrasyon -> KS-PE
     def get_channel_type(row):
         kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
         aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
@@ -145,7 +201,6 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    # Personel Bazlı Özet (Tamamen Yüklenen Dosyadan Alınır)
     personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
     summary = []
 
@@ -181,90 +236,195 @@ def process_excel_data(df):
     return pd.DataFrame(summary)
 
 # ==========================================
-# SIDEBAR (DOSYA YÜKLEME)
+# SIDEBAR VE GEZİNTİ MENÜSÜ
 # ==========================================
 with st.sidebar:
-    st.markdown("### Yurtiçi Kargo<br><small style='color:#F57C00;'>Görükle Acente</small>", unsafe_allow_html=True)
-    st.write("")
-    
-    uploaded_file = st.file_uploader("AT ZİMMET İZLEME Dosyası Yükle", type=None)
+    st.markdown("""
+    <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
+        <h2 style="margin: 0; color: #FFFFFF;">Yurtiçi Kargo</h2>
+        <h4 style="margin: 0; color: #F57C00;">Görükle Acente KOYS</h4>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
+    # Kullanıcı Profili
+    st.markdown(f"""
+    <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+        <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
+        <strong>{KULLANICI_ISIM}</strong> ({KULLANICI_GOREV})
+    </div>
+    """, unsafe_allow_html=True)
+
+    uploaded_file = st.file_uploader("📂 AT ZİMMET İZLEME Dosyası", type=None)
+    
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    
+    if st.button("📊 Ana Panel"):
+        st.session_state.active_tab = "Ana Panel"
     if st.button("🏃‍♂️ Kurye Performans"):
         st.session_state.active_tab = "Kurye Performans"
+    if st.button("👩‍💼 Operatör Performans"):
+        st.session_state.active_tab = "Operatör Performans"
+    if st.button("📈 Genel Grafikler & Rapor"):
+        st.session_state.active_tab = "Genel Raporlama"
 
 # ==========================================
-# KURYELER PERFORMANS PANELİ
+# VERİ YÜKLEME VE İŞLEME AŞAMASI
 # ==========================================
-st.subheader("🏃‍♂️ Kurye Performans Paneli")
+perf_df = None
 
 if uploaded_file is not None:
     try:
         raw_df = load_uploaded_file(uploaded_file)
         perf_df = process_excel_data(raw_df)
-        
-        if perf_df is not None and not perf_df.empty:
-            st.success(f"✅ Dosya başarıyla okundu! Toplam **{len(perf_df)}** kurye bulundu.")
-            
-            for _, row in perf_df.iterrows():
-                p_name = row["Personel"]
-                zimmet = row["Zimmet"]
-                teslim = row["Teslim Edilen"]
-                devir = row["Teslim Edilemeyen"]
-                rate = row["Başarı Oranı"]
-                sms = row["SMS"]
-                imza = row["İmza"]
-                ks_pe = row["KS-PE"]
-
-                with st.container():
-                    st.markdown(f"### 👤 {p_name}")
-                    
-                    col_img, col_z, col_t, col_d, col_chart = st.columns([1, 1, 1, 1, 1.2])
-                    
-                    with col_img:
-                        avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
-                        st.image(avatar_url, width=70)
-                        
-                    with col_z:
-                        st.metric("Zimmet Sayısı", zimmet)
-                        
-                    with col_t:
-                        st.metric("Teslim Edilen", teslim)
-                        
-                    with col_d:
-                        st.metric("Teslim Edilemeyen", devir)
-                        
-                    with col_chart:
-                        fig = go.Figure(data=[go.Pie(
-                            labels=['Teslim', 'Devir'],
-                            values=[teslim, devir],
-                            hole=0.65,
-                            marker_colors=['#2E7D32', '#D32F2F'],
-                            textinfo='none',
-                            hoverinfo='label+value'
-                        )])
-                        fig.update_layout(
-                            showlegend=False,
-                            margin=dict(l=0, r=0, t=0, b=0),
-                            height=75,
-                            width=75,
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            annotations=[dict(
-                                text=f"<b>%{rate:.0f}</b>",
-                                x=0.5, y=0.5,
-                                font_size=12,
-                                font_color="white",
-                                showarrow=False
-                            )]
-                        )
-                        st.plotly_chart(fig, use_container_width=False, config={'displayModeBar': False})
-
-                    st.caption(f"📲 **SMS:** {sms} adet &nbsp;&nbsp;|&nbsp;&nbsp; ✍️ **İmza:** {imza} adet &nbsp;&nbsp;|&nbsp;&nbsp; 🚪 **KS-PE:** {ks_pe} adet")
-                    st.markdown("---")
-
     except Exception as e:
-        st.error(f"❌ Dosya İşleme Hatası:\n{e}")
-else:
-    st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyin.")
+        st.error(f"❌ Dosya İşleme Hatası: {e}")
+
+# ==========================================
+# TAB 1: ANA PANEL (ÖZET & GENEL BAKIŞ)
+# ==========================================
+if st.session_state.active_tab == "Ana Panel":
+    st.title("📊 Görükle Acente - Genel Performans Özeti")
+    
+    if perf_df is not None and not perf_df.empty:
+        total_zimmet = perf_df["Zimmet"].sum()
+        total_teslim = perf_df["Teslim Edilen"].sum()
+        total_devir = perf_df["Teslim Edilemeyen"].sum()
+        avg_rate = round((total_teslim / total_zimmet) * 100, 1) if total_zimmet > 0 else 0
+        
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("📦 Toplam Zimmet", f"{total_zimmet:,}")
+        c2.metric("✅ Teslim Edilen", f"{total_teslim:,}")
+        c3.metric("🚨 Devir / Teslim Edilemeyen", f"{total_devir:,}")
+        c4.metric("🎯 Genel Başarı Oranı", f"%{avg_rate}")
+        
+        st.markdown("---")
+        
+        # Grafik Satırı
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.subheader("📊 Kurye Başarı Oranları (%)")
+            fig_bar = px.bar(
+                perf_df, 
+                x="Personel", 
+                y="Başarı Oranı", 
+                color="Başarı Oranı",
+                color_continuous_scale="RdYlGn",
+                text="Başarı Oranı"
+            )
+            fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
+            st.plotly_chart(fig_bar, use_container_width=True)
+            
+        with col_right:
+            st.subheader("📲 Teslimat Kanalları Dağılımı")
+            channel_totals = {
+                "SMS": perf_df["SMS"].sum(),
+                "İmza": perf_df["İmza"].sum(),
+                "KS-PE": perf_df["KS-PE"].sum()
+            }
+            fig_pie = px.pie(
+                names=list(channel_totals.keys()),
+                values=list(channel_totals.values()),
+                hole=0.5,
+                color_discrete_sequence=['#0D6EFD', '#F57C00', '#2E7D32']
+            )
+            fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        st.subheader("📋 Genel Performans Tablosu")
+        st.dataframe(perf_df, use_container_width=True)
+        
+    else:
+        st.info("💡 Sol menüden **AT ZİMMET İZLEME** rapor dosyasını yükleyerek Ana Panel verilerini anlık analiz edebilirsiniz.")
+
+# ==========================================
+# TAB 2: KURYE PERFORMANS PANELİ
+# ==========================================
+elif st.session_state.active_tab == "Kurye Performans":
+    st.title("🏃‍♂️ Kurye Performans Paneli")
+    
+    if perf_df is not None and not perf_df.empty:
+        st.success(f"✅ Rapor başarıyla yüklendi. Bulunan Kurye Sayısı: **{len(perf_df)}**")
+        
+        for _, row in perf_df.iterrows():
+            p_name = row["Personel"]
+            zimmet = row["Zimmet"]
+            teslim = row["Teslim Edilen"]
+            devir = row["Teslim Edilemeyen"]
+            rate = row["Başarı Oranı"]
+            sms = row["SMS"]
+            imza = row["İmza"]
+            ks_pe = row["KS-PE"]
+
+            avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
+
+            # Safe HTML Container Render
+            card_html = f"""
+            <div class="person-card notranslate">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                    <div class="profile-section" style="min-width: 220px;">
+                        <img src="{avatar_url}" class="avatar-circle">
+                        <div>
+                            <div class="person-name">{p_name}</div>
+                            <small style="color: #F57C00;">Saha Kuryesi</small>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="metric-title">Zimmet Sayısı</div>
+                        <div class="metric-value" style="color: #FFFFFF;">{zimmet}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="metric-title">Teslim Edilen</div>
+                        <div class="metric-value" style="color: #4CAF50;">{teslim}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="metric-title">Teslim Edilemeyen</div>
+                        <div class="metric-value" style="color: #F44336;">{devir}</div>
+                    </div>
+                    <div style="text-align: center; min-width: 80px;">
+                        <div class="metric-title">Başarı Oranı</div>
+                        <div class="metric-value" style="color: #F57C00;">%{rate}</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+                    <div class="channel-badge">📲 SMS: <span class="badge-val">{sms}</span></div>
+                    <div class="channel-badge">✍️ İMZA: <span class="badge-val">{imza}</span></div>
+                    <div class="channel-badge">🚪 KS-PE: <span class="badge-val">{ks_pe}</span></div>
+                </div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
+            
+    else:
+        st.warning("⚠️ Kurye performans verilerini görmek için sol menüden AT ZİMMET İZLEME dosyasını yükleyin.")
+
+# ==========================================
+# TAB 3: OPERATÖR PERFORMANS PANELİ
+# ==========================================
+elif st.session_state.active_tab == "Operatör Performans":
+    st.title("👩‍💼 Operatör & Acente İçi Performans")
+    
+    if perf_df is not None and not perf_df.empty:
+        st.subheader("📌 Acente İçi Teslimat İşlemleri")
+        st.dataframe(perf_df[["Personel", "Teslim Edilen", "İmza", "KS-PE"]], use_container_width=True)
+    else:
+        st.info("💡 Operatör verileri için sol taraftan dosyanızı yükleyin.")
+
+# ==========================================
+# TAB 4: GENEL RAPORLAMA VE ANALİZ
+# ==========================================
+elif st.session_state.active_tab == "Genel Raporlama":
+    st.title("📈 Genel Raporlama ve İstatistikler")
+    
+    if perf_df is not None and not perf_df.empty:
+        st.subheader("📊 Kuryeler Arası Zimmet vs Teslimat Karşılaştırması")
+        fig_comp = go.Figure(data=[
+            go.Bar(name='Teslim Edilen', x=perf_df['Personel'], y=perf_df['Teslim Edilen'], marker_color='#2E7D32'),
+            go.Bar(name='Teslim Edilemeyen', x=perf_df['Personel'], y=perf_df['Teslim Edilemeyen'], marker_color='#D32F2F')
+        ])
+        fig_comp.update_layout(barmode='stack', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.info("💡 Grafik analizi için dosya yüklemesi yapın.")
