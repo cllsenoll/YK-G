@@ -281,72 +281,51 @@ def process_excel_data(df):
     return res_df, None
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER (GÜNLÜK HESAP İÇİN)
+# PERSONEL HESAP ALIMI EKRANI PARSER
 # ==========================================
 def process_personnel_account_data(df):
     df.columns = df.columns.astype(str).str.strip()
     
-    # "Açıklama" sütununu tamamen temizle
+    # "Açıklama" içeren sütunları tamamen sil
     cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in c.upper() or "ACIKLAMA" in c.upper()]
     df = df.drop(columns=cols_to_drop, errors='ignore')
 
-    col_mapping = {}
+    p_col = None
+    ft_col = None
+    odeme_col = None
+    banka_col = None
+
     for col in df.columns:
         c_upper = col.upper()
-        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and "Personel Adı" not in col_mapping:
-            col_mapping["Personel Adı"] = col
-        elif ("FT" in c_upper or "FATURA" in c_upper) and "Nakit Ft Tutarı Topl" not in col_mapping:
-            col_mapping["Nakit Ft Tutarı Topl"] = col
-        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and "Nakit Ödeme Tutarı Topl" not in col_mapping:
-            col_mapping["Nakit Ödeme Tutarı Topl"] = col
-        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and "Banka/ATM" not in col_mapping:
-            col_mapping["Banka/ATM"] = col
+        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
+            p_col = col
+        elif ("FT" in c_upper or "FATURA" in c_upper) and not ft_col:
+            ft_col = col
+        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
+            odeme_col = col
+        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
+            banka_col = col
 
     result_df = pd.DataFrame()
     
-    if "Personel Adı" in col_mapping:
-        result_df["Personel Adı"] = df[col_mapping["Personel Adı"]].astype(str).str.strip()
-    else:
-        result_df["Personel Adı"] = df.iloc[:, 0].astype(str).str.strip()
+    result_df["Personel Adı"] = df[p_col].astype(str).str.strip() if p_col else df.iloc[:, 0].astype(str).str.strip()
 
-    # Boş veya geçersiz satırları temizle
+    # Boş / Geçersiz satırları filtrele
     result_df = result_df[~result_df["Personel Adı"].str.upper().isin(["NAN", "NONE", "TOTAL", "TOPLAM", ""])]
     result_df = result_df.dropna(subset=["Personel Adı"])
 
-    result_df["Nakit Ft Tutarı Topl"] = pd.to_numeric(
-        df.loc[result_df.index, col_mapping["Nakit Ft Tutarı Topl"]] if "Nakit Ft Tutarı Topl" in col_mapping else 0.0, 
-        errors='coerce'
-    ).fillna(0.0)
-
-    result_df["Nakit Ödeme Tutarı Topl"] = pd.to_numeric(
-        df.loc[result_df.index, col_mapping["Nakit Ödeme Tutarı Topl"]] if "Nakit Ödeme Tutarı Topl" in col_mapping else 0.0, 
-        errors='coerce'
-    ).fillna(0.0)
-
-    result_df["Banka/ATM"] = pd.to_numeric(
-        df.loc[result_df.index, col_mapping["Banka/ATM"]] if "Banka/ATM" in col_mapping else 0.0, 
-        errors='coerce'
-    ).fillna(0.0)
+    result_df["Nakit Ft Tutarı Topl"] = pd.to_numeric(df.loc[result_df.index, ft_col] if ft_col else 0.0, errors='coerce').fillna(0.0)
+    result_df["Nakit Ödeme Tutarı Topl"] = pd.to_numeric(df.loc[result_df.index, odeme_col] if odeme_col else 0.0, errors='coerce').fillna(0.0)
+    result_df["Banka/ATM"] = pd.to_numeric(df.loc[result_df.index, banka_col] if banka_col else 0.0, errors='coerce').fillna(0.0)
 
     # Formül: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
-    # Satır numarasını tam personel sayısı kadar 1'den başlat
     result_df.reset_index(drop=True, inplace=True)
     result_df.index = range(1, len(result_df) + 1)
 
-    # Sütun sırasını tam istenen sıraya sabitle (Açıklama Kesinlikle Yok)
-    result_df = result_df[[
-        "Personel Adı", 
-        "Nakit Ft Tutarı Topl", 
-        "Nakit Ödeme Tutarı Topl", 
-        "Banka/ATM", 
-        "Hesap", 
-        "İşlem"
-    ]]
-
-    return result_df
+    return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
@@ -522,11 +501,11 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: GÜNLÜK HESAP (YENİLENEN DİNAMİK YAPI)
+# TAB 3: GÜNLÜK HESAP (GÜVENLİ X-SAFETY HATASIZ FORMÜL YAPISI)
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
-    st.caption("✍️ Sayısal değerleri değiştirdiğinizde **Hesap (Nakit Ft. Topl + Nakit Ödeme Topl - Banka/ATM)** canlı güncellenir. Satır sayısı personel sayısı ile sabittir.")
+    st.caption("✍️ Değerleri değiştirdiğinizde **Hesap (Nakit Ft. Topl + Nakit Ödeme Topl - Banka/ATM)** otomatik güncellenir.")
     
     if account_df is not None:
         if "hesap_df" not in st.session_state or st.sidebar.button("🔄 Dosyadan Yeniden Yükle"):
@@ -540,8 +519,8 @@ elif st.session_state.active_tab == "Günlük Hesap":
                 return ['background-color: rgba(46, 125, 50, 0.4); color: #ffffff; font-weight: bold;'] * len(row)
             return [''] * len(row)
 
-        # Düzenlenebilir Tek Tablo (Açıklama Sütunu Kesinlikle Yok, Satır Sayısı Personel ile Sınırlı)
-        edited_df = st.data_editor(
+        # Interaktif Düzenlenebilir Tek Tablo
+        edited_output = st.data_editor(
             current_df.style.apply(highlight_rows, axis=1),
             column_config={
                 "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
@@ -551,19 +530,20 @@ elif st.session_state.active_tab == "Günlük Hesap":
                 "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True),
                 "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
             },
-            disabled=["Hesap"], # Otomatik formül alanı
+            disabled=["Hesap"],
             hide_index=False,
             use_container_width=True,
-            num_rows="fixed" # Sadece yüklenen personel sayısı kadar satır
-        )
-        
-        # Değerlerde değişiklik yapıldığında "Hesap" sütununu anında güncelle
-        edited_df["Hesap"] = (
-            pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0) + 
-            pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0) - 
-            pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0)
+            num_rows="fixed"
         )
 
+        # KeyError Engelleme: Sütun Güvenlik Kontrolü ve Dinamik Hesaplama
+        edited_df = pd.DataFrame(edited_output)
+        
+        ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0) if "Nakit Ft Tutarı Topl" in edited_df.columns else 0.0
+        odeme_vals = pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0) if "Nakit Ödeme Tutarı Topl" in edited_df.columns else 0.0
+        banka_vals = pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0.0) if "Banka/ATM" in edited_df.columns else 0.0
+
+        edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
         st.session_state.hesap_df = edited_df
 
         # ==========================================
