@@ -4,8 +4,8 @@ import pandas as pd
 
 # 1. Sayfa Ayarları (Sol Menü Açılabilir Halde)
 st.set_page_config(
-    page_title="Kargo Operasyon - Yönetim Paneli",
-    page_icon="📱",
+    page_title="Yurtiçi Kargo Görükle Acente",
+    page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -14,7 +14,14 @@ st.set_page_config(
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Ana Panel"
 
-# --- BİREBİR TEMA VE ÖZEL MENÜ CSS STİLLERİ ---
+# --- KULLANICI PROFİL BİLGİLERİ (İsteğinize göre düzenleyin) ---
+KULLANICI_ISIM = "Ahmet Berkant Öksüz"
+KULLANICI_GOREV = "Acente Yöneticisi"
+# Fotoğrafınızın linkini veya 'profil.jpg' gibi dosya yolunu buraya yazabilirsiniz:
+FOTO_URL = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+
+
+# --- BİREBİR TEMA VE ÖZEL CSS STİLLERİ ---
 custom_css = """
 <style>
     /* Ana Arka Plan */
@@ -34,12 +41,6 @@ custom_css = """
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
-    
-    [data-testid="stSidebar"] h2 {
-        font-size: 20px !important;
-        font-weight: 700;
-        margin-bottom: 20px;
-    }
 
     /* MENÜ BUTONLARI - SIRASIYLA MAVİ VE TURUNCU STİLLER */
     
@@ -56,7 +57,6 @@ custom_css = """
         text-align: left !important;
         margin-bottom: 10px !important;
         box-shadow: 0 4px 12px rgba(10, 67, 166, 0.3) !important;
-        transition: all 0.3s ease !important;
     }
 
     /* Turuncu Menü Butonu */
@@ -72,13 +72,6 @@ custom_css = """
         text-align: left !important;
         margin-bottom: 10px !important;
         box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3) !important;
-        transition: all 0.3s ease !important;
-    }
-
-    /* Aktif/Seçili Buton Vurgusu */
-    div.stButton > button.nav-btn-active {
-        border: 2px solid #FFFFFF !important;
-        transform: scale(1.02);
     }
 
     /* KPI KARTLARI STİLLERİ */
@@ -179,10 +172,39 @@ custom_css = """
         color: #070E1E !important;
     }
 
-    /* Tablo Stilleri (Dark Mode) */
-    .stDataFrame {
-        border-radius: 12px;
-        overflow: hidden;
+    /* PROFİL KARTI STİLİ (SOL MENÜ EN ALT) */
+    .user-profile-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .user-profile-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #F57C00;
+    }
+
+    .user-info-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #FFFFFF !important;
+        line-height: 1.2;
+    }
+
+    .user-info-role {
+        font-size: 12px;
+        color: #F57C00 !important;
+        font-weight: 600;
+        margin-top: 2px;
     }
 </style>
 """
@@ -193,44 +215,41 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # SOL TARAF AÇILIR MENÜ (SIDEBAR)
 # ==========================================
 with st.sidebar:
-    st.markdown("## 🚚 Operasyon Menüsü")
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    # 1. MENÜ BAŞLIĞI
+    st.markdown("### 🚚 Yurtiçi Kargo<br>Görükle Acente", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 1. SEKME: Ana Panel (Mavi)
-    btn_ana = st.button(
-        "📊 Ana Panel", 
-        key="btn_ana", 
-        type="primary"
-    )
+    # 2. SEKMELER (Sırasıyla Mavi ve Turuncu)
+    # Sekme 1: Ana Panel (Mavi)
+    btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
 
-    # 2. SEKME: Kurye Performans (Turuncu)
-    btn_kurye = st.button(
-        "🏃‍♂️ Kurye Performans", 
-        key="btn_kurye"
-    )
+    # Sekme 2: Kurye Performans (Turuncu)
+    btn_kurye = st.button("🏃‍♂️ Kurye Performans", key="btn_kurye")
     if btn_kurye:
         st.session_state.active_tab = "Kurye Performans"
 
-    # 3. SEKME: Sekreter Hesap (Mavi)
-    btn_sekreter = st.button(
-        "💼 Sekreter Hesap", 
-        key="btn_sekreter"
-    )
+    # Sekme 3: Sekreter Hesap (Mavi)
+    btn_sekreter = st.button("💼 Sekreter Hesap", key="btn_sekreter")
     if btn_sekreter:
         st.session_state.active_tab = "Sekreter Hesap"
 
-    # 4. SEKME: F4 Listesi (Turuncu)
-    btn_f4 = st.button(
-        "📋 F4 Listesi", 
-        key="btn_f4"
-    )
+    # Sekme 4: F4 Listesi (Turuncu)
+    btn_f4 = st.button("📋 F4 Listesi", key="btn_f4")
     if btn_f4:
         st.session_state.active_tab = "F4 Listesi"
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.caption("📱 Kargo Operasyon v2.4")
+    # 3. EN ALT PROFİL KARINI OLUŞTURMA
+    st.markdown(f"""
+        <div class="user-profile-card">
+            <img src="{FOTO_URL}" class="user-profile-img" alt="Profil Fotoğrafı">
+            <div>
+                <div class="user-info-name">{KULLANICI_ISIM}</div>
+                <div class="user-info-role">{KULLANICI_GOREV}</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 # ==========================================
@@ -287,13 +306,13 @@ if st.session_state.active_tab == "Ana Panel":
     """, unsafe_allow_html=True)
 
     # KPI 4: Günün Personeli (Beyaz Kart)
-    st.markdown("""
+    st.markdown(f"""
         <div class="kpi-card-white">
             <div class="kpi-header">
                 <span class="kpi-title-light">👑 Günün Personeli</span>
                 <span class="kpi-icon-right-light">⭐</span>
             </div>
-            <div class="kpi-value-light">Ahmet Berkant Öksüz</div>
+            <div class="kpi-value-light">{KULLANICI_ISIM}</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -330,7 +349,6 @@ if st.session_state.active_tab == "Ana Panel":
 # ------------------------------------------
 elif st.session_state.active_tab == "Kurye Performans":
     
-    # Üst Özet Kartları
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("""
@@ -340,10 +358,10 @@ elif st.session_state.active_tab == "Kurye Performans":
             </div>
         """, unsafe_allow_html=True)
     with col2:
-        st.markdown("""
+        st.markdown(f"""
             <div class="kpi-card-orange">
                 <div class="kpi-title-dark">⚡ En Hızlı Kurye</div>
-                <div class="kpi-value-dark">Ahmet B. (142 Dğıt.)</div>
+                <div class="kpi-value-dark">{KULLANICI_ISIM} (142)</div>
             </div>
         """, unsafe_allow_html=True)
     with col3:
@@ -356,9 +374,8 @@ elif st.session_state.active_tab == "Kurye Performans":
 
     st.markdown("### 🏆 Kurye Performans Tablosu")
     
-    # Örnek Kurye Veri Tablosu
     kurye_data = pd.DataFrame({
-        "Kurye Adı": ["Ahmet Berkant Öksüz", "Mehmet Yılmaz", "Ali Kaya", "Caner Erkin", "Burak Yılmaz"],
+        "Kurye Adı": [KULLANICI_ISIM, "Mehmet Yılmaz", "Ali Kaya", "Caner Erkin", "Burak Yılmaz"],
         "Zimmet Sayısı": [150, 130, 125, 110, 95],
         "Teslim Edilen": [142, 120, 110, 98, 80],
         "Kalan / İade": [8, 10, 15, 12, 15],
@@ -397,7 +414,7 @@ elif st.session_state.active_tab == "Sekreter Hesap":
         "İşlem Tipi": ["Nakit Tahsilat", "POS Tahsilat", "Kurye Avans", "Nakit Tahsilat", "POS Tahsilat"],
         "Açıklama": ["Şube Alıcı Ödemeli", "Kurye Gün Sonu", "Yakıt Ödemesi", "Şube Teslimat", "Saha Tahsilatı"],
         "Tutar": ["₺ 1.250", "₺ 8.400", "-₺ 500", "₺ 3.100", "₺ 12.150"],
-        "İşlemi Yapan": ["Seda A.", "Ahmet B.", "Mehmet Y.", "Seda A.", "Ali K."]
+        "İşlemi Yapan": ["Seda A.", KULLANICI_ISIM, "Mehmet Y.", "Seda A.", "Ali K."]
     })
     
     st.dataframe(hesap_data, use_container_width=True, hide_index=True)
@@ -424,7 +441,7 @@ elif st.session_state.active_tab == "F4 Listesi":
         "Takip No": ["TR8912341", "TR8912342", "TR8912343", "TR8912344", "TR8912345"],
         "Alıcı Adı": ["Tekno A.Ş.", "Mustafa Demir", "Aysun Çelik", "Kaya Lojistik", "Elif Şahin"],
         "Sebep / Problem": ["Adreste Yok / Haber Kağıdı", "Hatalı Adres", "Müşteri Kabul Etmiyor", "Randevulu Teslimat", "Telefon Ulaşılamıyor"],
-        "Sorumlu Kurye": ["Mehmet Y.", "Ali K.", "Caner E.", "Ahmet B.", "Burak Y."],
+        "Sorumlu Kurye": ["Mehmet Y.", "Ali K.", "Caner E.", KULLANICI_ISIM, "Burak Y."],
         "Aksiyon": ["Yarın Tekrar Çıkacak", "Adres Teyidi Bekliyor", "İade Oluşturuldu", "Beklemede", "SMS Gönderildi"]
     })
     
