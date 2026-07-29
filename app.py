@@ -11,12 +11,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. OTURUM DURUMU (Session State)
+# 2. OTURUM DURUMU
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Kurye Performans"
-
-KULLANICI_ISIM = "Celal Şenol"
-KULLANICI_GOREV = "Şube Şefi"
 
 # --- CSS ÖZELLEŞTİRMELERİ ---
 custom_css = """
@@ -43,56 +40,70 @@ custom_css = """
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         margin-bottom: 8px !important;
     }
-    .kurye-card-box {
-        background-color: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# GÜVENLİ DOSYA OKUMA MOTORU
+# AKILLI DOSYA OKUMA MOTORU (HTML/XML/CSV/EXCEL)
 # ==========================================
 def load_uploaded_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-    
-    # 1. OpenPyXL (XLSX)
+    errors = []
+
+    # 1. HTML Tablo Denemesi (Sistem raporları genelde HTML tablosudur)
+    try:
+        dfs = pd.read_html(io.BytesIO(file_bytes), encoding='utf-8')
+        if dfs and len(dfs) > 0:
+            return dfs[0]
+    except Exception as e:
+        errors.append(f"HTML (utf-8): {e}")
+
+    try:
+        dfs = pd.read_html(io.BytesIO(file_bytes), encoding='latin1')
+        if dfs and len(dfs) > 0:
+            return dfs[0]
+    except Exception as e:
+        errors.append(f"HTML (latin1): {e}")
+
+    # 2. XLSX (OpenPyXL)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
-    except Exception:
-        pass
+    except Exception as e:
+        errors.append(f"OpenPyXL: {e}")
 
-    # 2. XLRD (Eski XLS)
+    # 3. XLS (XLRD)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
-    except Exception:
-        pass
+    except Exception as e:
+        errors.append(f"XLRD: {e}")
 
-    # 3. HTML Formatında İndirilen Raporlar
+    # 4. CSV - Noktalı Virgül (Sistem çıktıları genelde böyledir)
     try:
-        dfs = pd.read_html(io.BytesIO(file_bytes))
-        if dfs:
-            return dfs[0]
-    except Exception:
-        pass
+        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='utf-8')
+    except Exception as e:
+        errors.append(f"CSV (; utf-8): {e}")
 
-    # 4. CSV UTF-8
     try:
-        return pd.read_csv(io.BytesIO(file_bytes), encoding='utf-8')
-    except Exception:
-        pass
+        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='latin1')
+    except Exception as e:
+        errors.append(f"CSV (; latin1): {e}")
 
-    # 5. CSV Latin-1 / Noktalı Virgül
+    # 5. CSV - Virgül
     try:
-        return pd.read_csv(io.BytesIO(file_bytes), encoding='latin1', sep=';')
-    except Exception:
-        pass
+        return pd.read_csv(io.BytesIO(file_bytes), sep=',', encoding='utf-8')
+    except Exception as e:
+        errors.append(f"CSV (, utf-8): {e}")
 
-    raise ValueError("Dosya okunamadı. Lütfen dosyanızın geçerli bir Excel (.xlsx / .xls) veya CSV olduğunu kontrol edin.")
+    # 6. CSV - Tab ile ayrılmış (TSV)
+    try:
+        return pd.read_csv(io.BytesIO(file_bytes), sep='\t', encoding='utf-8')
+    except Exception as e:
+        errors.append(f"TSV (utf-8): {e}")
+
+    # Hiçbiri çalışmazsa hataları göster
+    error_msg = " | ".join(errors)
+    raise ValueError(f"Dosya hiçbir yöntemle okunamadı. Detaylar: {error_msg}")
 
 # ==========================================
 # VERİ İŞLEME MOTORU (EXCEL PARSER)
@@ -106,8 +117,8 @@ def process_excel_data(df):
     missing_cols = [col for col in req_cols if col not in df.columns]
     
     if missing_cols:
-        st.error(f"❌ Excel dosyasında şu sütunlar eksik: {', '.join(missing_cols)}")
-        st.info(f"📋 Dosyanızdaki Mevcut Sütunlar: {list(df.columns)}")
+        st.error(f"❌ Excel/Rapor dosyasında şu sütunlar bulunamadı: {', '.join(missing_cols)}")
+        st.info(f"📋 Tespit Edilen Sütunlar: {list(df.columns)}")
         return None
 
     has_aciklama = "Açıklama" in df.columns
@@ -134,7 +145,7 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    # Personel Bazlı Gruplama (Tamamen Excel'deki İsimlerden Oluşur)
+    # Personel Bazlı Özet (Tamamen Yüklenen Dosyadan Alınır)
     personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
     summary = []
 
@@ -152,7 +163,6 @@ def process_excel_data(df):
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
         
-        # Kanal Dağılımları (Başarılı Teslimatlar İçin)
         sms_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "SMS"])
         imza_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "İMZA"])
         ks_pe_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "KS-PE"])
@@ -177,7 +187,7 @@ with st.sidebar:
     st.markdown("### Yurtiçi Kargo<br><small style='color:#F57C00;'>Görükle Acente</small>", unsafe_allow_html=True)
     st.write("")
     
-    uploaded_file = st.file_uploader("AT ZİMMET İZLEME Dosyası Yükle", type=["xlsx", "xls", "csv"])
+    uploaded_file = st.file_uploader("AT ZİMMET İZLEME Dosyası Yükle", type=None)
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -195,9 +205,8 @@ if uploaded_file is not None:
         perf_df = process_excel_data(raw_df)
         
         if perf_df is not None and not perf_df.empty:
-            st.success(f"✅ Excel başarıyla işlendi. Toplam **{len(perf_df)}** kurye listelendi.")
+            st.success(f"✅ Dosya başarıyla okundu! Toplam **{len(perf_df)}** kurye bulundu.")
             
-            # Personelleri Alt Alta Kart Yapısında Göster
             for _, row in perf_df.iterrows():
                 p_name = row["Personel"]
                 zimmet = row["Zimmet"]
@@ -227,7 +236,6 @@ if uploaded_file is not None:
                         st.metric("Teslim Edilemeyen", devir)
                         
                     with col_chart:
-                        # Çember Grafik (Plotly Donut Chart)
                         fig = go.Figure(data=[go.Pie(
                             labels=['Teslim', 'Devir'],
                             values=[teslim, devir],
@@ -253,11 +261,10 @@ if uploaded_file is not None:
                         )
                         st.plotly_chart(fig, use_container_width=False, config={'displayModeBar': False})
 
-                    # Kanal Bilgileri Detay Satırı
                     st.caption(f"📲 **SMS:** {sms} adet &nbsp;&nbsp;|&nbsp;&nbsp; ✍️ **İmza:** {imza} adet &nbsp;&nbsp;|&nbsp;&nbsp; 🚪 **KS-PE:** {ks_pe} adet")
                     st.markdown("---")
 
     except Exception as e:
-        st.error(f"❌ Dosya okunurken hata oluştu: {e}")
+        st.error(f"❌ Dosya İşleme Hatası:\n{e}")
 else:
     st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyin.")
