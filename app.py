@@ -1,385 +1,247 @@
 import streamlit as st
-import pandas as pd
 import plotly.graph_objects as go
-import chardet
 
-# Sayfa Yapılandırması
+# Sayfa Ayarları
 st.set_page_config(
     page_title="Ana Panel - Kargo Operasyon",
     page_icon="📱",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# --- KOYU TEMA VE CSS STİLLERİ ---
+# --- BİREBİR TEMA CSS STİLLERİ ---
 custom_css = """
 <style>
+    /* Ana Arka Plan */
     .stApp {
-        background-color: #0B1426;
+        background-color: #070E1E;
         color: #FFFFFF;
     }
     
-    h1, h2, h3, h4, span, label {
+    /* Üst Başlıklar ve Yazılar */
+    h1, h2, h3, h4, h5, h6, p, span, label {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
+    /* KPI Kart Konteyner Yapısı */
     .kpi-card-blue {
-        background: linear-gradient(135deg, #0A43A6 0%, #002266 100%);
-        border-radius: 16px;
-        padding: 20px;
+        background: linear-gradient(135deg, #0A43A6 0%, #032057 100%);
+        border-radius: 18px;
+        padding: 18px 20px;
         color: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         margin-bottom: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
     }
     
     .kpi-card-orange {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%);
-        border-radius: 16px;
-        padding: 20px;
+        border-radius: 18px;
+        padding: 18px 20px;
         color: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         margin-bottom: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Kart Üst Başlık ve İkon Alanı */
+    .kpi-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
     }
 
     .kpi-title {
         font-size: 14px;
+        font-weight: 500;
         opacity: 0.9;
-        margin-bottom: 8px;
         display: flex;
-        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
     }
 
+    .kpi-icon-right {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+    }
+
+    /* Kart Değer Alanı */
     .kpi-value {
-        font-size: 28px;
-        font-weight: bold;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
     }
 
-    div[data-testid="stFileUploader"] {
-        background-color: #121E36;
-        border-radius: 10px;
-        padding: 10px;
-        border: 1px dashed #0A58CA;
+    /* Donat Grafik Alanı Kartı */
+    .chart-container {
+        background-color: #0D192D;
+        border-radius: 18px;
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Sidebar Gizleme / Şeffaflaştırma */
+    [data-testid="stSidebar"] {
+        background-color: #091325;
     }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# --- VARSAYILAN (TEST/ÖRNEK) VERİ ---
-def get_default_data():
-    return pd.DataFrame({
-        "Kurye": ["Ahmet Berkant Öksüz", "Allattin Cobeci", "Hasan Sağlam", "Mehmet Kaymaz"],
-        "Zimmet": [266, 250, 247, 246],
-        "Teslim": [228, 218, 212, 213],
-        "Devir": [38, 32, 35, 33],
-        "Sms": [150, 140, 130, 145],
-        "İmza": [70, 70, 75, 60],
-        "KS": [8, 8, 7, 8],
-        "Nakit": [0.0, 0.0, 0.0, 0.0],
-        "Kart": [0.0, 0.0, 0.0, 0.0]
-    })
 
-# --- DOSYA OKUYUCU ---
-def load_uploaded_file(file):
-    filename = file.name.lower()
-    
-    if filename.endswith('.csv'):
-        raw_data = file.read(20000)
-        file.seek(0)
-        detected = chardet.detect(raw_data)
-        detected_enc = detected['encoding'] if detected['encoding'] else 'iso-8859-9'
-        
-        encodings = [detected_enc, 'iso-8859-9', 'cp1254', 'utf-8', 'latin1']
-        separators = [';', ',', '\t']
-        
-        for enc in encodings:
-            for sep in separators:
-                try:
-                    file.seek(0)
-                    df_temp = pd.read_csv(file, encoding=enc, sep=sep, on_bad_lines='skip')
-                    if df_temp.shape[1] > 1:
-                        return df_temp
-                except:
-                    continue
-        
-        file.seek(0)
-        return pd.read_csv(file, encoding='iso-8859-9', sep=None, engine='python', on_bad_lines='skip')
-            
-    elif filename.endswith('.xlsb'):
-        return pd.read_excel(file, engine='pyxlsb')
-    elif filename.endswith('.xls'):
-        return pd.read_excel(file, engine='xlrd')
-    else:
-        return pd.read_excel(file)
+# ==========================================
+# İKON VE METRİK ŞABLON TANIMLARI (UI CONFIG)
+# ==========================================
 
-# --- HAM KPOS VERİSİNİ İŞLEME VE PERFORMANS ÖZETİ OLUŞTURMA ---
-def parse_kpos_data(df_raw):
-    # Sütun isimlerini temizle
-    df_raw.columns = df_raw.columns.astype(str).str.strip()
-    
-    # Esnek Sütun Yakalama
-    col_zimmet_personel = None
-    col_teslim_personel = None
-    col_durum = None
-    col_kanal = None
-    col_aciklama = None
-    
-    for col in df_raw.columns:
-        c_clean = col.lower()
-        if 'zimmet' in c_clean and 'personel' in c_clean:
-            col_zimmet_personel = col
-        elif 'teslim' in c_clean and 'personel' in c_clean:
-            col_teslim_personel = col
-        elif 'durum' in c_clean or 'teslimat durumu' in c_clean:
-            col_durum = col
-        elif 'kanal' in c_clean:
-            col_kanal = col
-        elif 'açıklama' in c_clean or 'aciklama' in c_clean:
-            col_aciklama = col
+# 1. KART ŞABLONLARI (Yer tutucu varsayılan değerler ile)
+METRIC_CARDS = {
+    "card_1": {
+        "title": "Zimmet",
+        "left_icon": "📦",
+        "right_icon": "⚙️",
+        "value": "1.248",
+        "type": "blue"
+    },
+    "card_2": {
+        "title": "Teslim Edilen",
+        "left_icon": "📝",
+        "right_icon": "🚚",
+        "value": "1.078",
+        "type": "orange"
+    },
+    "card_3": {
+        "title": "Devir",
+        "left_icon": "🔄",
+        "right_icon": "🔁",
+        "value": "170",
+        "type": "blue"
+    },
+    "card_4": {
+        "title": "Tahsilat Tutarı",
+        "left_icon": "💳",
+        "right_icon": "₺",
+        "value": "₺256,980",
+        "type": "orange"
+    }
+}
 
-    # Eğer ham veri formatı bulunamazsa uyarı ver
-    if not col_zimmet_personel:
-        return None, "Sütun bulunamadı: 'AT Zimmet Personel Adı'"
+# 2. GRAFİK ŞABLONU
+CHART_CONFIG = {
+    "title": "Teslimat Oranı",
+    "percentage": 86.4,
+    "legend_1_label": "Teslim Edilen",
+    "legend_1_value": "1.078",
+    "legend_1_color": "#0A58CA",
+    "legend_2_label": "Devir",
+    "legend_2_value": "170",
+    "legend_2_color": "#FF6B00"
+}
 
-    # Personel Listesi (Zimmeti veya Teslimatı olan tüm benzersiz isimler)
-    p_zimmet = df_raw[col_zimmet_personel].dropna().astype(str).str.strip().unique()
-    p_teslim = df_raw[col_teslim_personel].dropna().astype(str).str.strip().unique() if col_teslim_personel else []
-    
-    all_personnel = set(p_zimmet).union(set(p_teslim))
-    all_personnel = [p for p in all_personnel if p and p.lower() != 'nan' and p != '']
 
-    summary_list = []
+# ==========================================
+# ARAYÜZ OLUŞTURMA (LAYOUT)
+# ==========================================
 
-    for p in all_personnel:
-        # 1. Zimmet Sayısı
-        zimmet_mask = df_raw[col_zimmet_personel].astype(str).str.strip() == p
-        zimmet_count = int(zimmet_mask.sum())
+# Üst Başlık ve Filtre Alanı
+col_title, col_date = st.columns([2, 1])
+with col_title:
+    st.subheader("☰ Ana Panel")
 
-        # 2. Teslim Sayısı
-        if col_teslim_personel:
-            teslim_mask = df_raw[col_teslim_personel].astype(str).str.strip() == p
-            teslim_count = int(teslim_mask.sum())
-        else:
-            teslim_mask = pd.Series(False, index=df_raw.index)
-            teslim_count = 0
+with col_date:
+    st.date_input("", key="top_date_picker", label_visibility="collapsed")
 
-        # 3. Devir Sayısı (Zimmetinde ismi geçen ve Şubede Bekletiliyor olanlar)
-        if col_durum:
-            devir_mask = zimmet_mask & df_raw[col_durum].astype(str).str.contains('Şubede Bekletiliyor|Teslim Edilmedi', case=False, na=False)
-            devir_count = int(devir_mask.sum())
-        else:
-            devir_count = max(0, zimmet_count - teslim_count)
+st.markdown("<br>", unsafe_allow_html=True)
 
-        # 4. SMS Sayısı
-        if col_kanal:
-            sms_mask = teslim_mask & df_raw[col_kanal].astype(str).str.upper().str.contains('SMS', na=False)
-            sms_count = int(sms_mask.sum())
-        else:
-            sms_count = 0
+# KPI Kartlar Satırı 1
+c1, c2 = st.columns(2)
 
-        # 5. İMZA Sayısı
-        if col_kanal:
-            imza_mask = teslim_mask & df_raw[col_kanal].astype(str).str.upper().str.contains('İMZA|IMZA', na=False)
-            imza_count = int(imza_mask.sum())
-        else:
-            imza_count = 0
+with c1:
+    card = METRIC_CARDS["card_1"]
+    st.markdown(f"""
+        <div class="kpi-card-{card['type']}">
+            <div class="kpi-header">
+                <span class="kpi-title">{card['left_icon']} {card['title']}</span>
+                <span class="kpi-icon-right">{card['right_icon']}</span>
+            </div>
+            <div class="kpi-value">{card['value']}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-        # 6. KS Sayısı (KAPIYA BIRAKILDI VEYA POS Entegrasyon)
-        ks_by_kanal = (teslim_mask & df_raw[col_kanal].astype(str).str.upper().str.contains('KAPIYA BIRAKILDI', na=False)) if col_kanal else pd.Series(False, index=df_raw.index)
-        ks_by_aciklama = (teslim_mask & df_raw[col_aciklama].astype(str).str.contains('POS Entegrasyon', case=False, na=False)) if col_aciklama else pd.Series(False, index=df_raw.index)
-        
-        ks_count = int((ks_by_kanal | ks_by_aciklama).sum())
+with c2:
+    card = METRIC_CARDS["card_2"]
+    st.markdown(f"""
+        <div class="kpi-card-{card['type']}">
+            <div class="kpi-header">
+                <span class="kpi-title">{card['left_icon']} {card['title']}</span>
+                <span class="kpi-icon-right">{card['right_icon']}</span>
+            </div>
+            <div class="kpi-value">{card['value']}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-        summary_list.append({
-            "Kurye": p,
-            "Zimmet": zimmet_count,
-            "Teslim": teslim_count,
-            "Devir": devir_count,
-            "Sms": sms_count,
-            "İmza": imza_count,
-            "KS": ks_count,
-            "Nakit": 0.0,
-            "Kart": 0.0
-        })
+# KPI Kartlar Satırı 2
+c3, c4 = st.columns(2)
 
-    df_summary = pd.DataFrame(summary_list)
-    return df_summary, None
+with c3:
+    card = METRIC_CARDS["card_3"]
+    st.markdown(f"""
+        <div class="kpi-card-{card['type']}">
+            <div class="kpi-header">
+                <span class="kpi-title">{card['left_icon']} {card['title']}</span>
+                <span class="kpi-icon-right">{card['right_icon']}</span>
+            </div>
+            <div class="kpi-value">{card['value']}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-# --- VERİ KAYNAĞI PANELİ ---
-st.sidebar.title("⚙️ Veri Kaynağı")
+with c4:
+    card = METRIC_CARDS["card_4"]
+    st.markdown(f"""
+        <div class="kpi-card-{card['type']}">
+            <div class="kpi-header">
+                <span class="kpi-title">{card['left_icon']} {card['title']}</span>
+                <span class="kpi-icon-right">{card['right_icon']}</span>
+            </div>
+            <div class="kpi-value">{card['value']}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-uploaded_file = st.sidebar.file_uploader(
-    "Dosya Yükleyin (.xlsx, .xls, .xlsm, .xlsb, .csv)", 
-    type=None,
-    key="universal_excel_uploader"
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Grafiğin Üst Başlığı
+st.markdown(f"#### {CHART_CONFIG['title']}")
+
+# Donat Grafik ve Legend Alanı
+fig_donut = go.Figure(data=[go.Pie(
+    labels=[CHART_CONFIG["legend_1_label"], CHART_CONFIG["legend_2_label"]],
+    values=[float(CHART_CONFIG["legend_1_value"].replace('.', '')), float(CHART_CONFIG["legend_2_value"].replace('.', ''))],
+    hole=0.70,
+    marker_colors=[CHART_CONFIG["legend_1_color"], CHART_CONFIG["legend_2_color"]],
+    textinfo="none"
+)])
+
+fig_donut.update_layout(
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    font=dict(color="white"),
+    showlegend=True,
+    height=240,
+    margin=dict(l=10, r=10, t=10, b=10),
+    annotations=[dict(
+        text=f"<b>%{CHART_CONFIG['percentage']}</b>",
+        x=0.5, y=0.5,
+        font_size=28,
+        font_color="white",
+        showarrow=False
+    )]
 )
 
-df = None
-
-if uploaded_file is not None:
-    try:
-        raw_df = load_uploaded_file(uploaded_file)
-        
-        # Eğer yüklenen dosya zaten özet tablo formatındaysa doğrudan al, değilse ham veriyi işle
-        if "Kurye" in raw_df.columns and "Zimmet" in raw_df.columns:
-            df = raw_df
-            st.sidebar.success(f"'{uploaded_file.name}' özet tablo olarak yüklendi!")
-        else:
-            parsed_df, err = parse_kpos_data(raw_df)
-            if err:
-                st.sidebar.error(err)
-                df = get_default_data()
-            else:
-                df = parsed_df
-                st.sidebar.success(f"'{uploaded_file.name}' başarıyla analiz edildi!")
-            
-    except Exception as e:
-        st.sidebar.error(f"Dosya okuma hatası: {e}")
-        df = get_default_data()
-else:
-    df = get_default_data()
-
-# --- HESAPLAMALAR ---
-df["Zimmet"] = df["Zimmet"].astype(int)
-df["Teslim"] = df["Teslim"].astype(int)
-df["Devir"] = df["Devir"].astype(int)
-
-df["Teslimat_Orani"] = df.apply(lambda r: (r["Teslim"] / r["Zimmet"] * 100) if r["Zimmet"] > 0 else 0, axis=1)
-df["Toplam_Tahsilat"] = df["Nakit"] + df["Kart"]
-
-# --- SEKME YAPISI ---
-tab_main, tab_kurye, tab_f4 = st.tabs([
-    "🏠 Ana Panel", 
-    "👥 Kurye Performansı", 
-    "💳 Tahsilat & F4"
-])
-
-# ==========================================
-# 1. ANA PANEL
-# ==========================================
-with tab_main:
-    st.title("Ana Panel")
-    
-    toplam_zimmet = int(df["Zimmet"].sum())
-    toplam_teslimat = int(df["Teslim"].sum())
-    toplam_devir = int(df["Devir"].sum())
-    toplam_tahsilat = df["Toplam_Tahsilat"].sum()
-    genel_oran = (toplam_teslimat / toplam_zimmet) * 100 if toplam_zimmet > 0 else 0
-
-    row1_col1, row1_col2 = st.columns(2)
-    with row1_col1:
-        st.markdown(f"""
-            <div class="kpi-card-blue">
-                <div class="kpi-title"><span>📦 Zimmet</span> ⚙️</div>
-                <div class="kpi-value">{toplam_zimmet:,}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with row1_col2:
-        st.markdown(f"""
-            <div class="kpi-card-orange">
-                <div class="kpi-title"><span>📝 Teslim Edilen</span> 🚚</div>
-                <div class="kpi-value">{toplam_teslimat:,}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    row2_col1, row2_col2 = st.columns(2)
-    with row2_col1:
-        st.markdown(f"""
-            <div class="kpi-card-blue">
-                <div class="kpi-title"><span>🔄 Devir</span> 🔁</div>
-                <div class="kpi-value">{toplam_devir:,}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with row2_col2:
-        st.markdown(f"""
-            <div class="kpi-card-orange">
-                <div class="kpi-title"><span>💳 Tahsilat Tutarı</span> ₺</div>
-                <div class="kpi-value">₺{toplam_tahsilat:,.0f}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Teslimat Oranı")
-
-    fig_donut = go.Figure(data=[go.Pie(
-        labels=["Teslim Edilen", "Devir"],
-        values=[toplam_teslimat, toplam_devir],
-        hole=0.68,
-        marker_colors=["#0A58CA", "#FF6B00"],
-        textinfo="none"
-    )])
-
-    fig_donut.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color="white"),
-        showlegend=True,
-        height=260,
-        margin=dict(l=10, r=10, t=10, b=10),
-        annotations=[dict(
-            text=f"<b>%{genel_oran:.1f}</b>",
-            x=0.5, y=0.5,
-            font_size=26,
-            font_color="white",
-            showarrow=False
-        )]
-    )
-
-    st.plotly_chart(fig_donut, use_container_width=True)
-
-# ==========================================
-# 2. KURYE PERFORMANSI
-# ==========================================
-with tab_kurye:
-    st.title("Kurye Performansı")
-
-    for idx, row in df.iterrows():
-        oran = row["Teslimat_Orani"]
-        
-        with st.container():
-            c_img, c_details, c_chart = st.columns([0.8, 2.5, 1.2])
-            
-            with c_img:
-                st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={row['Kurye']}", width=55)
-
-            with c_details:
-                st.markdown(f"**{row['Kurye']}**")
-                st.caption(f"Zimmet: **{row['Zimmet']}** | Teslim: **{row['Teslim']}** | Devir: **{row['Devir']}** | SMS: **{row['Sms']}** | İmza: **{row['İmza']}** | KS: **{row['KS']}**")
-
-            with c_chart:
-                fig_mini = go.Figure(data=[go.Pie(
-                    values=[oran, max(0, 100 - oran)],
-                    hole=0.7,
-                    marker_colors=["#FF6B00", "#0A43A6"],
-                    textinfo="none"
-                )])
-                fig_mini.update_layout(
-                    showlegend=False,
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    height=70,
-                    width=70,
-                    margin=dict(l=0, r=0, t=0, b=0),
-                    annotations=[dict(
-                        text=f"%{oran:.1f}",
-                        x=0.5, y=0.5,
-                        font_size=12,
-                        font_color="white",
-                        showarrow=False
-                    )]
-                )
-                st.plotly_chart(fig_mini, use_container_width=False)
-            
-            st.markdown("<hr style='border-color: #1E2D4A; margin: 5px 0;'>", unsafe_allow_html=True)
-
-# ==========================================
-# 3. TAHSİLAT & F4 ÖDEME LİSTESİ
-# ==========================================
-with tab_f4:
-    st.title("Tahsilat & F4 Ödeme Listesi")
-    
-    st.dataframe(
-        df[["Kurye", "Zimmet", "Teslim", "Devir", "Sms", "İmza", "KS", "Nakit", "Kart", "Toplam_Tahsilat"]],
-        use_container_width=True
-    )
+st.plotly_chart(fig_donut, use_container_width=True)
