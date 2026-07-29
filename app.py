@@ -7,11 +7,9 @@ import os
 import base64
 import re
 
-# app.py dosyasının üst kısmına ekleyin:
-account_df = None
-
-
+# ==========================================
 # 1. SAYFA YAPILANDIRMASI
+# ==========================================
 st.set_page_config(
     page_title="Görükle Acente - Performance Dashboard",
     page_icon="📦",
@@ -19,14 +17,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ==========================================
 # 2. OTURUM DURUMU (Session State)
+# ==========================================
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Ana Panel"
 
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
-# --- CSS VE TRANSLATE KORUMA KODLARI ---
+# ==========================================
+# 3. CSS VE TEMA STİLLERİ
+# ==========================================
 custom_css = """
 <style>
     .notranslate {
@@ -111,15 +113,22 @@ custom_css = """
         font-weight: 700;
         color: #F57C00 !important;
     }
+    .kasa-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 18px;
+        margin-top: 20px;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# İSİM METNİ OTOMATİK NORMALİZASYON FONKSİYONU
+# 4. YARDIMCI VE DÖNÜŞTÜRÜCÜ FONKSİYONLAR
 # ==========================================
 def clean_string(text):
-    if not text:
+    if pd.isna(text) or not text:
         return ""
     text = str(text).upper().strip()
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
@@ -128,9 +137,24 @@ def clean_string(text):
     text = re.sub(r'[^A-Z0-9]', '', text)
     return text
 
-# ==========================================
-# OTOMATİK KURYE FOTOĞRAFI ALMA
-# ==========================================
+def parse_turkish_float(val):
+    if pd.isna(val) or val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip()
+    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
+        return 0.0
+    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
+    if ',' in s and '.' in s:
+        s = s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        s = s.replace(',', '.')
+    try:
+        return float(s)
+    except:
+        return 0.0
+
 def get_courier_photo(courier_name):
     clean_courier = clean_string(courier_name)
     
@@ -142,7 +166,7 @@ def get_courier_photo(courier_name):
     for target_dir in search_dirs:
         try:
             files = os.listdir(target_dir)
-            
+            # 1. Aşama: Tam Eşleşme
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -157,7 +181,8 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
-
+            
+            # 2. Aşama: Kısmi Eşleşme
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -172,18 +197,16 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
-
         except Exception:
             continue
                         
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
-# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
+# 5. DOSYA OKUMA MOTORU
 # ==========================================
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-
     encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
     separators = [';', ',', '\t', None]
 
@@ -224,27 +247,52 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU
+# 6. AT ZİMMET İZLEME VERİ İŞLEME MOTORU
 # ==========================================
 def process_excel_data(df):
-    df.columns = df.columns.astype(str).str.strip()
-    
-    req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
-    missing_cols = [col for col in req_cols if col not in df.columns]
-    
-    if missing_cols:
-        return None, missing_cols
+    header_idx = 0
+    for idx, row in df.iterrows():
+        row_str = " ".join([str(val).upper() for val in row.values])
+        if "AT ZİMMET PERSONEL" in row_str or "TESLİM EDEN PERSONEL" in row_str or "ZİMMET" in row_str:
+            header_idx = idx
+            break
+            
+    if header_idx > 0:
+        df.columns = df.iloc[header_idx].astype(str).str.strip()
+        df = df.iloc[header_idx + 1:].reset_index(drop=True)
+    else:
+        df.columns = df.columns.astype(str).str.strip()
 
-    has_aciklama = "Açıklama" in df.columns
+    p_zimmet_col, p_teslim_col, kanal_col, aciklama_col = None, None, None, None
+
+    for col in df.columns:
+        c_upper = str(col).upper()
+        if "ZİMMET PERSONEL" in c_upper or "AT ZİMMET" in c_upper:
+            p_zimmet_col = col
+        elif "TESLİM EDEN" in c_upper:
+            p_teslim_col = col
+        elif "KANAL" in c_upper or "TESLİMAT KANAL" in c_upper:
+            kanal_col = col
+        elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper:
+            aciklama_col = col
+
+    if not p_zimmet_col:
+        cols_list = list(df.columns)
+        if len(cols_list) > 0: p_zimmet_col = cols_list[0]
+    if not p_teslim_col and len(df.columns) > 1:
+        p_teslim_col = df.columns[1]
+
+    if not p_zimmet_col or not p_teslim_col:
+        return None, ["AT Zimmet Personel Adı", "Teslim Eden Personel"]
 
     def check_delivery(row):
-        zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
-        teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
+        zimmet_p = str(row[p_zimmet_col]).strip().upper()
+        teslim_p = str(row[p_teslim_col]).strip().upper() if p_teslim_col else ""
         return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
 
     def get_channel_type(row):
-        kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
-        aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
+        kanali = str(row[kanal_col]).strip().upper() if kanal_col else ""
+        aciklama = str(row[aciklama_col]).strip().upper() if aciklama_col else ""
         
         if "KONTROL SENDE" in kanali or "POS ENTEGRASYON" in aciklama:
             return "KS-PE"
@@ -257,15 +305,15 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
+    personnel_list = df[p_zimmet_col].dropna().unique()
     summary = []
 
     for person in personnel_list:
         p_name = str(person).strip()
-        if not p_name or p_name.upper() == "NAN":
+        if not p_name or p_name.upper() in ["NAN", "NONE", "TOTAL", "TOPLAM"]:
             continue
             
-        p_df = df[df["AT Zimmet Personel Adı"] == person]
+        p_df = df[df[p_zimmet_col] == person]
         zimmet_cnt = len(p_df)
         
         teslim_df = p_df[p_df["Is_Teslim"] == True]
@@ -296,7 +344,132 @@ def process_excel_data(df):
     return res_df, None
 
 # ==========================================
-# SIDEBAR VE GEZİNTİ MENÜSÜ
+# 7. PERSONEL HESAP ALIMI EKRANI PARSER (GÜNLÜK HESAP İÇİN)
+# ==========================================
+def process_personnel_account_data(df):
+    header_idx = 0
+    for idx, row in df.iterrows():
+        row_str = " ".join([str(val).upper() for val in row.values])
+        if "PERSONEL" in row_str or "NAKİT" in row_str or "FT" in row_str or "ÖDEME" in row_str:
+            header_idx = idx
+            break
+            
+    if header_idx > 0:
+        df.columns = df.iloc[header_idx].astype(str).str.strip()
+        df = df.iloc[header_idx + 1:].reset_index(drop=True)
+    else:
+        df.columns = df.columns.astype(str).str.strip()
+
+    cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in str(c).upper() or "ACIKLAMA" in str(c).upper()]
+    df = df.drop(columns=cols_to_drop, errors='ignore')
+
+    p_col, ft_col, odeme_col, banka_col = None, None, None, None
+
+    for col in df.columns:
+        c_upper = str(col).upper()
+        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
+            p_col = col
+        elif ("FT" in c_upper or "FATURA" in c_upper) and not ft_col:
+            ft_col = col
+        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
+            odeme_col = col
+        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
+            banka_col = col
+
+    cols_list = list(df.columns)
+    if not p_col and len(cols_list) > 0: p_col = cols_list[0]
+    if not ft_col and len(cols_list) > 1: ft_col = cols_list[1]
+    if not odeme_col and len(cols_list) > 2: odeme_col = cols_list[2]
+    if not banka_col and len(cols_list) > 3: banka_col = cols_list[3]
+
+    parsed_rows = []
+    for _, row in df.iterrows():
+        raw_p_name = str(row[p_col]).strip() if p_col else ""
+        c_p_name = clean_string(raw_p_name)
+        
+        if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
+            continue
+            
+        ft_val = parse_turkish_float(row[ft_col]) if ft_col else 0.0
+        odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
+        banka_val = parse_turkish_float(row[banka_col]) if banka_col else 0.0
+
+        parsed_rows.append({
+            "Raw_Name": raw_p_name,
+            "Clean_Name": c_p_name,
+            "Nakit Ft Tutarı Topl": ft_val,
+            "Nakit Ödeme Tutarı Topl": odeme_val,
+            "Banka/ATM": banka_val
+        })
+
+    temp_df = pd.DataFrame(parsed_rows)
+
+    priority_list = [
+        "HATİCE KÜBRA IŞIK",
+        "ALATTİN CEBECİ",
+        "BURCU DÜREN",
+        "AHMET BERKAN ÖKSÜZ",
+        "HASAN SAĞLAM",
+        "MEHMET KAYMAZ",
+        "SUAT ARI",
+        "SERGEN GÖRÜROĞLU"
+    ]
+
+    final_rows = []
+    processed_clean_names = set()
+
+    for fixed_name in priority_list:
+        clean_fixed = clean_string(fixed_name)
+        matched_row = None
+        
+        if not temp_df.empty:
+            exact_match = temp_df[temp_df["Clean_Name"] == clean_fixed]
+            if not exact_match.empty:
+                matched_row = exact_match.iloc[0]
+            else:
+                contains_match = temp_df[temp_df["Clean_Name"].apply(lambda x: clean_fixed in x or x in clean_fixed)]
+                if not contains_match.empty:
+                    matched_row = contains_match.iloc[0]
+
+        if matched_row is not None:
+            final_rows.append({
+                "Personel Adı": fixed_name,
+                "Nakit Ft Tutarı Topl": float(matched_row["Nakit Ft Tutarı Topl"]),
+                "Nakit Ödeme Tutarı Topl": float(matched_row["Nakit Ödeme Tutarı Topl"]),
+                "Banka/ATM": float(matched_row["Banka/ATM"]),
+            })
+            processed_clean_names.add(matched_row["Clean_Name"])
+        else:
+            final_rows.append({
+                "Personel Adı": fixed_name,
+                "Nakit Ft Tutarı Topl": 0.0,
+                "Nakit Ödeme Tutarı Topl": 0.0,
+                "Banka/ATM": 0.0,
+            })
+
+    if not temp_df.empty:
+        for _, row in temp_df.iterrows():
+            c_name = row["Clean_Name"]
+            if c_name not in processed_clean_names:
+                final_rows.append({
+                    "Personel Adı": row["Raw_Name"],
+                    "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
+                    "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
+                    "Banka/ATM": float(row["Banka/ATM"]),
+                })
+                processed_clean_names.add(c_name)
+
+    result_df = pd.DataFrame(final_rows)
+    result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
+    result_df["İşlem"] = False
+
+    result_df.reset_index(drop=True, inplace=True)
+    result_df.index = range(1, len(result_df) + 1)
+
+    return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
+
+# ==========================================
+# 8. SIDEBAR VE GEZİNTİ MENÜSÜ
 # ==========================================
 with st.sidebar:
     st.markdown("""
@@ -315,7 +488,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=None)
+    uploaded_files = st.file_uploader("📂 Rapor / Listeleri Yükle", type=None, accept_multiple_files=True)
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -323,26 +496,32 @@ with st.sidebar:
         st.session_state.active_tab = "Ana Panel"
     if st.button("🏃‍♂️ Kurye Performans"):
         st.session_state.active_tab = "Kurye Performans"
-    if st.button("📋 Personel Teslimat Kanalları"):
-        st.session_state.active_tab = "Personel Teslimat Kanalları"
-    if st.button("📈 Genel Grafikler & Rapor"):
-        st.session_state.active_tab = "Genel Raporlama"
-    if st.button("💵 Günlük Hesap & Kasa"):
+    if st.button("📋 Günlük Hesap"):
         st.session_state.active_tab = "Günlük Hesap"
 
 # ==========================================
-# VERİ YÜKLEME VE İŞLEME AŞAMASI
+# 9. DOSYALARIN İŞLENMESİ
 # ==========================================
 perf_df = None
+account_df = None
 raw_df = None
-missing_columns = None
 
-if uploaded_file is not None:
-    try:
-        raw_df = smart_read_file(uploaded_file)
-        perf_df, missing_columns = process_excel_data(raw_df)
-    except Exception as e:
-        st.error(f"❌ Dosya Okuma Hatası: {e}")
+if uploaded_files:
+    for file in uploaded_files:
+        try:
+            temp_raw = smart_read_file(file)
+            col_names_str = " ".join([str(c).upper() for c in temp_raw.columns]) + " " + " ".join([str(val).upper() for val in temp_raw.iloc[0:5].values.flatten()])
+            
+            if "ZİMMET" in col_names_str or "TESLİM EDEN" in col_names_str:
+                parsed_perf, _ = process_excel_data(temp_raw)
+                if parsed_perf is not None:
+                    perf_df = parsed_perf
+            elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
+                account_df = process_personnel_account_data(temp_raw)
+            else:
+                raw_df = temp_raw
+        except Exception as e:
+            st.error(f"❌ {file.name} okuma hatası: {e}")
 
 # ==========================================
 # TAB 1: ANA PANEL
@@ -398,7 +577,7 @@ if st.session_state.active_tab == "Ana Panel":
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
         
-    elif raw_df is not None and missing_columns is not None:
+    elif raw_df is not None:
         st.success("✅ Dosya başarıyla okundu!")
         st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste. Veriler aşağıda listelenmiştir:")
         
@@ -406,7 +585,7 @@ if st.session_state.active_tab == "Ana Panel":
         raw_display.index = range(1, len(raw_display) + 1)
         st.dataframe(raw_display, use_container_width=True)
     else:
-        st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
+        st.info("💡 Sol taraftan **AT ZİMMET İZLEME** dosyanızı yükleyerek kurye performans verilerine erişebilirsiniz.")
 
 # ==========================================
 # TAB 2: KURYE PERFORMANS PANELİ
@@ -469,47 +648,7 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: PERSONEL TESLİMAT KANALLARI
-# ==========================================
-elif st.session_state.active_tab == "Personel Teslimat Kanalları":
-    st.title("📋 Personel Teslimat Kanalları")
-    
-    if perf_df is not None and not perf_df.empty:
-        st.subheader("📌 Personel Bazlı Teslimat Kanal Sayıları")
-        channel_table = perf_df[["Personel", "Teslim Edilen", "SMS", "İmza", "KS-PE"]]
-        st.dataframe(channel_table, use_container_width=True)
-        
-    elif raw_df is not None:
-        st.info("ℹ️ Yüklenen ham veri tablosu:")
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
-    else:
-        st.info("💡 Verileri görüntülemek için sol taraftan dosya yükleyin.")
-
-# ==========================================
-# TAB 4: GENEL RAPORLAMA VE ANALİZ
-# ==========================================
-elif st.session_state.active_tab == "Genel Raporlama":
-    st.title("📈 Genel Raporlama ve İstatistikler")
-    
-    if perf_df is not None and not perf_df.empty:
-        st.subheader("📊 Kuryeler Arası Zimmet vs Teslimat Karşılaştırması")
-        fig_comp = go.Figure(data=[
-            go.Bar(name='Teslim Edilen', x=perf_df['Personel'], y=perf_df['Teslim Edilen'], marker_color='#2E7D32'),
-            go.Bar(name='Teslim Edilemeyen', x=perf_df['Personel'], y=perf_df['Teslim Edilemeyen'], marker_color='#D32F2F')
-        ])
-        fig_comp.update_layout(barmode='stack', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
-        st.plotly_chart(fig_comp, use_container_width=True)
-    elif raw_df is not None:
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
-    else:
-        st.info("💡 Grafik analizi için dosya yüklemesi yapın.")
-
-# ==========================================
-# TAB 3: GÜNLÜK HESAP
+# TAB 3: GÜNLÜK HESAP (KORUNAN ALAN)
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
@@ -551,9 +690,7 @@ elif st.session_state.active_tab == "Günlük Hesap":
         edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
         st.session_state.hesap_df = edited_df
 
-        # ==========================================
-        # TOPLAM HESAP, KASA VE DENGE DURUM BÖLÜMÜ
-        # ==========================================
+        # KASA VE DENGE HESAPLAMA
         st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
         st.subheader("💵 Genel Kasa ve Hesap Dengesi")
 
@@ -575,7 +712,6 @@ elif st.session_state.active_tab == "Günlük Hesap":
             )
             st.session_state.kasa_miktari = kasa_val
 
-        # Güncellenen Kasa Durum Mantığı (Toplam Hesap - KASA)
         kasa_fark = toplam_hesap - kasa_val
 
         with col3:
