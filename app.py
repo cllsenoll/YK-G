@@ -33,6 +33,10 @@ custom_css = """
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         margin-bottom: 15px;
         border: 1px solid rgba(255, 255, 255, 0.05);
+        height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     
     .kpi-card-orange {
@@ -43,6 +47,10 @@ custom_css = """
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         margin-bottom: 15px;
         border: 1px solid rgba(255, 255, 255, 0.05);
+        height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
 
     /* Kart Üst Başlık ve İkon Alanı */
@@ -50,11 +58,10 @@ custom_css = """
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
     }
 
     .kpi-title {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 500;
         opacity: 0.9;
         display: flex;
@@ -75,20 +82,15 @@ custom_css = """
 
     /* Kart Değer Alanı */
     .kpi-value {
-        font-size: 26px;
+        font-size: 22px;
         font-weight: 700;
         letter-spacing: 0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    /* Donat Grafik Alanı Kartı */
-    .chart-container {
-        background-color: #0D192D;
-        border-radius: 18px;
-        padding: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    /* Sidebar Gizleme / Şeffaflaştırma */
+    /* Sidebar Gizleme */
     [data-testid="stSidebar"] {
         background-color: #091325;
     }
@@ -101,34 +103,36 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # İKON VE METRİK ŞABLON TANIMLARI (UI CONFIG)
 # ==========================================
 
-# 1. KART ŞABLONLARI (Yer tutucu varsayılan değerler ile)
+# 1. KART ŞABLONLARI (2 Üst + 2 Alt Düzeni)
 METRIC_CARDS = {
-    "card_1": {
+    # --- ÜST SATIR ---
+    "top_left": {
         "title": "Zimmet",
         "left_icon": "📦",
         "right_icon": "⚙️",
         "value": "1.248",
         "type": "blue"
     },
-    "card_2": {
+    "top_right": {
         "title": "Teslim Edilen",
         "left_icon": "📝",
         "right_icon": "🚚",
         "value": "1.078",
         "type": "orange"
     },
-    "card_3": {
+    # --- ALT SATIR ---
+    "bottom_left": {
         "title": "Devir",
         "left_icon": "🔄",
         "right_icon": "🔁",
         "value": "170",
         "type": "blue"
     },
-    "card_4": {
-        "title": "Tahsilat Tutarı",
-        "left_icon": "💳",
-        "right_icon": "₺",
-        "value": "₺256,980",
+    "bottom_right": {
+        "title": "Günün Personeli",
+        "left_icon": "👑",
+        "right_icon": "⭐",
+        "value": "Ahmet Berkant",  # Buraya veri bağlandığında en yüksek teslimat yapan personel adı gelecek
         "type": "orange"
     }
 }
@@ -150,7 +154,7 @@ CHART_CONFIG = {
 # ARAYÜZ OLUŞTURMA (LAYOUT)
 # ==========================================
 
-# Üst Başlık ve Filtre Alanı
+# Üst Başlık ve Tarih Seçici
 col_title, col_date = st.columns([2, 1])
 with col_title:
     st.subheader("☰ Ana Panel")
@@ -160,11 +164,13 @@ with col_date:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# KPI Kartlar Satırı 1
-c1, c2 = st.columns(2)
+# ------------------------------------------
+# KARTLAR SATIR 1 (ÜST: Zimmet | Teslim Edilen)
+# ------------------------------------------
+row1_col1, row1_col2 = st.columns(2)
 
-with c1:
-    card = METRIC_CARDS["card_1"]
+with row1_col1:
+    card = METRIC_CARDS["top_left"]
     st.markdown(f"""
         <div class="kpi-card-{card['type']}">
             <div class="kpi-header">
@@ -175,8 +181,8 @@ with c1:
         </div>
     """, unsafe_allow_html=True)
 
-with c2:
-    card = METRIC_CARDS["card_2"]
+with row1_col2:
+    card = METRIC_CARDS["top_right"]
     st.markdown(f"""
         <div class="kpi-card-{card['type']}">
             <div class="kpi-header">
@@ -187,11 +193,13 @@ with c2:
         </div>
     """, unsafe_allow_html=True)
 
-# KPI Kartlar Satırı 2
-c3, c4 = st.columns(2)
+# ------------------------------------------
+# KARTLAR SATIR 2 (ALT: Devir | Günün Personeli)
+# ------------------------------------------
+row2_col1, row2_col2 = st.columns(2)
 
-with c3:
-    card = METRIC_CARDS["card_3"]
+with row2_col1:
+    card = METRIC_CARDS["bottom_left"]
     st.markdown(f"""
         <div class="kpi-card-{card['type']}">
             <div class="kpi-header">
@@ -202,8 +210,8 @@ with c3:
         </div>
     """, unsafe_allow_html=True)
 
-with c4:
-    card = METRIC_CARDS["card_4"]
+with row2_col2:
+    card = METRIC_CARDS["bottom_right"]
     st.markdown(f"""
         <div class="kpi-card-{card['type']}">
             <div class="kpi-header">
@@ -216,10 +224,11 @@ with c4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Grafiğin Üst Başlığı
+# ------------------------------------------
+# TESLİMAT ORANI GRAFİĞİ
+# ------------------------------------------
 st.markdown(f"#### {CHART_CONFIG['title']}")
 
-# Donat Grafik ve Legend Alanı
 fig_donut = go.Figure(data=[go.Pie(
     labels=[CHART_CONFIG["legend_1_label"], CHART_CONFIG["legend_2_label"]],
     values=[float(CHART_CONFIG["legend_1_value"].replace('.', '')), float(CHART_CONFIG["legend_2_value"].replace('.', ''))],
