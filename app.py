@@ -125,7 +125,7 @@ def clean_string(text):
     return text
 
 # ==========================================
-# OTOMATİK KURYE FOTOĞRAFI ALMA (GELİŞMİŞ EŞLEŞTİRME)
+# OTOMATİK KURYE FOTOĞRAFI ALMA
 # ==========================================
 def get_courier_photo(courier_name):
     clean_courier = clean_string(courier_name)
@@ -138,7 +138,6 @@ def get_courier_photo(courier_name):
     for target_dir in search_dirs:
         try:
             files = os.listdir(target_dir)
-            
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -153,33 +152,16 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
-
-            for file in files:
-                file_path = os.path.join(target_dir, file)
-                if os.path.isfile(file_path):
-                    ext = os.path.splitext(file)[1].lower().replace('.', '')
-                    if ext in ['png', 'jpg', 'jpeg', 'webp']:
-                        file_name_clean = clean_string(os.path.splitext(file)[0])
-                        if file_name_clean and clean_courier and (file_name_clean in clean_courier or clean_courier in file_name_clean):
-                            try:
-                                with open(file_path, "rb") as image_file:
-                                    encoded_string = base64.b64encode(image_file.read()).decode()
-                                    mime_type = "image/png" if ext == "png" else f"image/{ext}"
-                                    return f"data:{mime_type};base64,{encoded_string}"
-                            except Exception:
-                                pass
-
         except Exception:
             continue
                         
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
-# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
+# AKILLI DOSYA OKUMA MOTORU
 # ==========================================
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-
     encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
     separators = [';', ',', '\t', None]
 
@@ -292,11 +274,15 @@ def process_excel_data(df):
     return res_df, None
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER (GÜNLÜK HESAP İÇİN)
+# PERSONEL HESAP ALIMI EKRANI PARSER (YALNIZCA GÜNLÜK HESAP İÇİN)
 # ==========================================
 def process_personnel_account_data(df):
     df.columns = df.columns.astype(str).str.strip()
     
+    # "Açıklama" veya benzeri sütunları tamamen temizle
+    cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in c.upper() or "ACIKLAMA" in c.upper()]
+    df = df.drop(columns=cols_to_drop, errors='ignore')
+
     col_mapping = {}
     for col in df.columns:
         c_upper = col.upper()
@@ -316,8 +302,10 @@ def process_personnel_account_data(df):
     result_df["Nakit Ödeme Tutarı Topl"] = pd.to_numeric(df[col_mapping["Nakit Ödeme Tutarı Topl"]] if "Nakit Ödeme Tutarı Topl" in col_mapping else 0.0, errors='coerce').fillna(0.0)
     result_df["Banka/ATM"] = pd.to_numeric(df[col_mapping["Banka/ATM"]] if "Banka/ATM" in col_mapping else 0.0, errors='coerce').fillna(0.0)
     
-    # Formül: Nakit Ft Tutarı Top + Nakit Ödeme Tutarı Topl - Banka/ATM
+    # Doğru Formül: Nakit Ft Tutarı Top + Nakit Ödeme Tutarı Topl - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Top"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
+    
+    # İşlem Sütunu tablonun en sonuna eklenir
     result_df["İşlem"] = False
 
     # Satır numaralandırmasını 1'den başlat
@@ -359,21 +347,33 @@ with st.sidebar:
         st.session_state.active_tab = "Genel Raporlama"
 
 # ==========================================
-# VERİ YÜKLEME VE İŞLEME AŞAMASI
+# VERİ YÜKLEME VE İŞLEME AŞAMASI (AKILLI TESPİT)
 # ==========================================
 perf_df = None
+account_df = None
 raw_df = None
-missing_columns = None
 
 if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
-        perf_df, missing_columns = process_excel_data(raw_df)
+        
+        # Sütun tespiti ile dosya türünü ayır
+        col_names_str = " ".join([str(c).upper() for c in raw_df.columns])
+        
+        if "AT ZİMMET PERSONEL ADI" in col_names_str or "TESLİM EDEN PERSONEL" in col_names_str:
+            perf_df, _ = process_excel_data(raw_df)
+        elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str:
+            account_df = process_personnel_account_data(raw_df)
+        else:
+            # Genel kontrol
+            perf_df, _ = process_excel_data(raw_df)
+            account_df = process_personnel_account_data(raw_df)
+            
     except Exception as e:
         st.error(f"❌ Dosya Okuma Hatası: {e}")
 
 # ==========================================
-# TAB 1: ANA PANEL
+# TAB 1: ANA PANEL (SADECE ZİMMET RAPORU İÇİN)
 # ==========================================
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
@@ -426,18 +426,11 @@ if st.session_state.active_tab == "Ana Panel":
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
         
-    elif raw_df is not None and missing_columns is not None:
-        st.success("✅ Dosya başarıyla okundu!")
-        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste. Veriler aşağıda listelenmiştir:")
-        
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
     else:
-        st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyerek paneli kullanabilirsiniz.")
+        st.info("💡 Sol taraftan **AT ZİMMET İZLEME** dosyasını yükleyerek kurye performans paneline erişebilirsiniz.")
 
 # ==========================================
-# TAB 2: KURYE PERFORMANS PANELİ
+# TAB 2: KURYE PERFORMANS PANELİ (SADECE ZİMMET RAPORU İÇİN)
 # ==========================================
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
@@ -497,15 +490,15 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: GÜNLÜK HESAP (TEK TABLO - DİNAMİK MANUEL DÜZELTME & RENKLENDİRME)
+# TAB 3: GÜNLÜK HESAP (SADECE PERSONEL HESAP ALIMI EKRANI İÇİN)
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
-    st.caption("✍️ Sayısal değerleri değiştirdiğinizde **Hesap (Nakit Ft. + Nakit Ödeme - Banka/ATM)** canlı güncellenir. **İşlem** kutucuğunu seçtiğiniz personel yeşil vurgulu olur.")
+    st.caption("✍️ Sayısal değerleri değiştirdiğinizde **Hesap (Nakit Ft. + Nakit Ödeme - Banka/ATM)** otomatik güncellenir.")
     
-    if raw_df is not None:
+    if account_df is not None:
         if "hesap_df" not in st.session_state or st.sidebar.button("🔄 Dosyadan Yeniden Yükle"):
-            st.session_state.hesap_df = process_personnel_account_data(raw_df)
+            st.session_state.hesap_df = account_df.copy()
             
         current_df = st.session_state.hesap_df.copy()
 
