@@ -227,27 +227,52 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (GÜNCELLENDİ)
 # ==========================================
 def process_excel_data(df):
-    df.columns = df.columns.astype(str).str.strip()
-    
-    req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
-    missing_cols = [col for col in req_cols if col not in df.columns]
-    
-    if missing_cols:
-        return None, missing_cols
+    header_idx = 0
+    for idx, row in df.iterrows():
+        row_str = " ".join([str(val).upper() for val in row.values])
+        if "AT ZİMMET PERSONEL" in row_str or "TESLİM EDEN PERSONEL" in row_str or "ZİMMET" in row_str:
+            header_idx = idx
+            break
+            
+    if header_idx > 0:
+        df.columns = df.iloc[header_idx].astype(str).str.strip()
+        df = df.iloc[header_idx + 1:].reset_index(drop=True)
+    else:
+        df.columns = df.columns.astype(str).str.strip()
 
-    has_aciklama = "Açıklama" in df.columns
+    p_zimmet_col, p_teslim_col, kanal_col, aciklama_col = None, None, None, None
+
+    for col in df.columns:
+        c_upper = str(col).upper()
+        if "ZİMMET PERSONEL" in c_upper or "AT ZİMMET" in c_upper:
+            p_zimmet_col = col
+        elif "TESLİM EDEN" in c_upper:
+            p_teslim_col = col
+        elif "KANAL" in c_upper or "TESLİMAT KANAL" in c_upper:
+            kanal_col = col
+        elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper:
+            aciklama_col = col
+
+    if not p_zimmet_col:
+        cols_list = list(df.columns)
+        if len(cols_list) > 0: p_zimmet_col = cols_list[0]
+    if not p_teslim_col and len(df.columns) > 1:
+        p_teslim_col = df.columns[1]
+
+    if not p_zimmet_col or not p_teslim_col:
+        return None, ["AT Zimmet Personel Adı", "Teslim Eden Personel"]
 
     def check_delivery(row):
-        zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
-        teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
+        zimmet_p = str(row[p_zimmet_col]).strip().upper()
+        teslim_p = str(row[p_teslim_col]).strip().upper() if p_teslim_col else ""
         return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
 
     def get_channel_type(row):
-        kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
-        aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
+        kanali = str(row[kanal_col]).strip().upper() if kanal_col else ""
+        aciklama = str(row[aciklama_col]).strip().upper() if aciklama_col else ""
         
         if "KONTROL SENDE" in kanali or "POS ENTEGRASYON" in aciklama:
             return "KS-PE"
@@ -260,15 +285,15 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
+    personnel_list = df[p_zimmet_col].dropna().unique()
     summary = []
 
     for person in personnel_list:
         p_name = str(person).strip()
-        if not p_name or p_name.upper() == "NAN":
+        if not p_name or p_name.upper() in ["NAN", "NONE", "TOTAL", "TOPLAM"]:
             continue
             
-        p_df = df[df["AT Zimmet Personel Adı"] == person]
+        p_df = df[df[p_zimmet_col] == person]
         zimmet_cnt = len(p_df)
         
         teslim_df = p_df[p_df["Is_Teslim"] == True]
@@ -443,7 +468,8 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=None)
+    # Birden fazla dosya yükleme özelliği eklendi
+    uploaded_files = st.file_uploader("📂 Rapor / Listeleri Yükle", type=None, accept_multiple_files=True)
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -457,27 +483,28 @@ with st.sidebar:
         st.session_state.active_tab = "Genel Raporlama"
 
 # ==========================================
-# VERİ YÜKLEME VE İŞLEME AŞAMASI
+# VERİ YÜKLEME VE İŞLEME AŞAMASI (ÇOKLU DOSYA DSTEĞİ)
 # ==========================================
 perf_df = None
 account_df = None
 raw_df = None
 
-if uploaded_file is not None:
-    try:
-        raw_df = smart_read_file(uploaded_file)
-        col_names_str = " ".join([str(c).upper() for c in raw_df.columns])
-        
-        if "AT ZİMMET PERSONEL ADI" in col_names_str or "TESLİM EDEN PERSONEL" in col_names_str:
-            perf_df, _ = process_excel_data(raw_df)
-        elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
-            account_df = process_personnel_account_data(raw_df)
-        else:
-            perf_df, _ = process_excel_data(raw_df)
-            account_df = process_personnel_account_data(raw_df)
+if uploaded_files:
+    for file in uploaded_files:
+        try:
+            temp_raw = smart_read_file(file)
+            col_names_str = " ".join([str(c).upper() for c in temp_raw.columns]) + " " + " ".join([str(val).upper() for val in temp_raw.iloc[0:5].values.flatten()])
             
-    except Exception as e:
-        st.error(f"❌ Dosya Okuma Hatası: {e}")
+            if "ZİMMET" in col_names_str or "TESLİM EDEN" in col_names_str:
+                parsed_perf, _ = process_excel_data(temp_raw)
+                if parsed_perf is not None:
+                    perf_df = parsed_perf
+            elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
+                account_df = process_personnel_account_data(temp_raw)
+            else:
+                raw_df = temp_raw
+        except Exception as e:
+            st.error(f"❌ {file.name} okuma hatası: {e}")
 
 # ==========================================
 # TAB 1: ANA PANEL
@@ -597,7 +624,7 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: GÜNLÜK HESAP
+# TAB 3: GÜNLÜK HESAP (KORUNAN VE DEĞİŞTİRİLMEYEN ALAN)
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
@@ -663,7 +690,7 @@ elif st.session_state.active_tab == "Günlük Hesap":
             )
             st.session_state.kasa_miktari = kasa_val
 
-        # Güncellenen Kasa Durum Mantığı (Kasa > Toplam Hesap ise AÇIK)
+        # Güncellenen Kasa Durum Mantığı (Toplam Hesap - KASA)
         kasa_fark = toplam_hesap - kasa_val
 
         with col3:
