@@ -14,11 +14,11 @@ st.set_page_config(
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Ana Panel"
 
-# --- KULLANICI PROFİL BİLGİLERİ (İsteğinize göre düzenleyin) ---
-KULLANICI_ISIM = "Ahmet Berkant Öksüz"
-KULLANICI_GOREV = "Acente Yöneticisi"
-# Fotoğrafınızın linkini veya 'profil.jpg' gibi dosya yolunu buraya yazabilirsiniz:
-FOTO_URL = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+# --- KULLANICI PROFİL BİLGİLERİ ---
+KULLANICI_ISIM = "Celal Şenol"
+KULLANICI_GOREV = "Şube Şefi"
+# Fotoğrafınızı kod ile aynı klasöre 'celal_senol.jpg' ismiyle kaydetmeniz yeterlidir:
+FOTO_URL = "celal_senol.jpg" 
 
 
 # --- BİREBİR TEMA VE ÖZEL CSS STİLLERİ ---
@@ -43,8 +43,6 @@ custom_css = """
     }
 
     /* MENÜ BUTONLARI - SIRASIYLA MAVİ VE TURUNCU STİLLER */
-    
-    /* Mavi Menü Butonu */
     div.stButton > button.nav-btn-blue {
         background: linear-gradient(135deg, #0A43A6 0%, #032057 100%) !important;
         color: white !important;
@@ -59,7 +57,6 @@ custom_css = """
         box-shadow: 0 4px 12px rgba(10, 67, 166, 0.3) !important;
     }
 
-    /* Turuncu Menü Butonu */
     div.stButton > button.nav-btn-orange {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
         color: white !important;
@@ -186,15 +183,15 @@ custom_css = """
     }
 
     .user-profile-img {
-        width: 48px;
-        height: 48px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         object-fit: cover;
         border: 2px solid #F57C00;
     }
 
     .user-info-name {
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 700;
         color: #FFFFFF !important;
         line-height: 1.2;
@@ -219,37 +216,42 @@ with st.sidebar:
     st.markdown("### 🚚 Yurtiçi Kargo<br>Görükle Acente", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER (Sırasıyla Mavi ve Turuncu)
-    # Sekme 1: Ana Panel (Mavi)
+    # 2. SEKMELER
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
 
-    # Sekme 2: Kurye Performans (Turuncu)
     btn_kurye = st.button("🏃‍♂️ Kurye Performans", key="btn_kurye")
     if btn_kurye:
         st.session_state.active_tab = "Kurye Performans"
 
-    # Sekme 3: Sekreter Hesap (Mavi)
     btn_sekreter = st.button("💼 Sekreter Hesap", key="btn_sekreter")
     if btn_sekreter:
         st.session_state.active_tab = "Sekreter Hesap"
 
-    # Sekme 4: F4 Listesi (Turuncu)
     btn_f4 = st.button("📋 F4 Listesi", key="btn_f4")
     if btn_f4:
         st.session_state.active_tab = "F4 Listesi"
 
-    # 3. EN ALT PROFİL KARINI OLUŞTURMA
-    st.markdown(f"""
-        <div class="user-profile-card">
-            <img src="{FOTO_URL}" class="user-profile-img" alt="Profil Fotoğrafı">
-            <div>
-                <div class="user-info-name">{KULLANICI_ISIM}</div>
+    # 3. PROFİL KARTI (CELAL ŞENOL - ŞUBE ŞEFİ)
+    # Eğer lokal dosya yoksa varsayılan resim görünür
+    try:
+        st.markdown(f"""
+            <div class="user-profile-card">
+                <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol">
+                <div>
+                    <div class="user-info-name">{KULLANICI_ISIM}</div>
+                    <div class="user-info-role">{KULLANICI_GOREV}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    except:
+        st.markdown(f"""
+            <div class="user-profile-card">
+                <div class="user-info-name">👤 {KULLANICI_ISIM}</div>
                 <div class="user-info-role">{KULLANICI_GOREV}</div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
 
 # ==========================================
@@ -266,15 +268,11 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ==========================================
-# EKRAN İÇERİKLERİ (SEKMELERE GÖRE DİNAMİK)
+# EKRAN İÇERİKLERİ
 # ==========================================
 
-# ------------------------------------------
-# EKRAN 1: ANA PANEL
-# ------------------------------------------
 if st.session_state.active_tab == "Ana Panel":
     
-    # KPI 1: AT Zimmet (Turuncu Kart)
     st.markdown("""
         <div class="kpi-card-orange">
             <div class="kpi-header">
@@ -285,7 +283,6 @@ if st.session_state.active_tab == "Ana Panel":
         </div>
     """, unsafe_allow_html=True)
 
-    # KPI 2 & 3: Teslim Edildi / Edilemedi (Yan Yana Mavi Kartlar)
     st.markdown("""
         <div class="blue-cards-row">
             <div class="kpi-card-blue">
@@ -305,18 +302,16 @@ if st.session_state.active_tab == "Ana Panel":
         </div>
     """, unsafe_allow_html=True)
 
-    # KPI 4: Günün Personeli (Beyaz Kart)
     st.markdown(f"""
         <div class="kpi-card-white">
             <div class="kpi-header">
                 <span class="kpi-title-light">👑 Günün Personeli</span>
                 <span class="kpi-icon-right-light">⭐</span>
             </div>
-            <div class="kpi-value-light">{KULLANICI_ISIM}</div>
+            <div class="kpi-value-light">{KULLANICI_ISIM} ({KULLANICI_GOREV})</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Grafik
     st.markdown("#### Teslimat Oranı")
     fig_donut = go.Figure(data=[go.Pie(
         labels=["Teslim Edilen", "Teslim Edilemedi"],
@@ -344,11 +339,7 @@ if st.session_state.active_tab == "Ana Panel":
     st.plotly_chart(fig_donut, use_container_width=True)
 
 
-# ------------------------------------------
-# EKRAN 2: KURYE PERFORMANS
-# ------------------------------------------
 elif st.session_state.active_tab == "Kurye Performans":
-    
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("""
@@ -360,8 +351,8 @@ elif st.session_state.active_tab == "Kurye Performans":
     with col2:
         st.markdown(f"""
             <div class="kpi-card-orange">
-                <div class="kpi-title-dark">⚡ En Hızlı Kurye</div>
-                <div class="kpi-value-dark">{KULLANICI_ISIM} (142)</div>
+                <div class="kpi-title-dark">⚡ Sorumlu Şef</div>
+                <div class="kpi-value-dark">{KULLANICI_ISIM}</div>
             </div>
         """, unsafe_allow_html=True)
     with col3:
@@ -375,22 +366,17 @@ elif st.session_state.active_tab == "Kurye Performans":
     st.markdown("### 🏆 Kurye Performans Tablosu")
     
     kurye_data = pd.DataFrame({
-        "Kurye Adı": [KULLANICI_ISIM, "Mehmet Yılmaz", "Ali Kaya", "Caner Erkin", "Burak Yılmaz"],
+        "Kurye Adı": ["Ahmet Berkant Öksüz", "Mehmet Yılmaz", "Ali Kaya", "Caner Erkin", "Burak Yılmaz"],
         "Zimmet Sayısı": [150, 130, 125, 110, 95],
         "Teslim Edilen": [142, 120, 110, 98, 80],
         "Kalan / İade": [8, 10, 15, 12, 15],
         "Başarı Oranı (%)": ["%94.6", "%92.3", "%88.0", "%89.0", "%84.2"],
         "Durum": ["🟢 Harika", "🟢 İyi", "🟡 Orta", "🟢 İyi", "🔴 Riskli"]
     })
-    
     st.dataframe(kurye_data, use_container_width=True, hide_index=True)
 
 
-# ------------------------------------------
-# EKRAN 3: SEKRETER HESAP
-# ------------------------------------------
 elif st.session_state.active_tab == "Sekreter Hesap":
-    
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("""
@@ -414,17 +400,12 @@ elif st.session_state.active_tab == "Sekreter Hesap":
         "İşlem Tipi": ["Nakit Tahsilat", "POS Tahsilat", "Kurye Avans", "Nakit Tahsilat", "POS Tahsilat"],
         "Açıklama": ["Şube Alıcı Ödemeli", "Kurye Gün Sonu", "Yakıt Ödemesi", "Şube Teslimat", "Saha Tahsilatı"],
         "Tutar": ["₺ 1.250", "₺ 8.400", "-₺ 500", "₺ 3.100", "₺ 12.150"],
-        "İşlemi Yapan": ["Seda A.", KULLANICI_ISIM, "Mehmet Y.", "Seda A.", "Ali K."]
+        "Onaylayan Şef": [KULLANICI_ISIM, KULLANICI_ISIM, KULLANICI_ISIM, KULLANICI_ISIM, KULLANICI_ISIM]
     })
-    
     st.dataframe(hesap_data, use_container_width=True, hide_index=True)
 
 
-# ------------------------------------------
-# EKRAN 4: F4 LİSTESİ
-# ------------------------------------------
 elif st.session_state.active_tab == "F4 Listesi":
-    
     st.markdown("""
         <div class="kpi-card-white">
             <div class="kpi-header">
@@ -441,8 +422,7 @@ elif st.session_state.active_tab == "F4 Listesi":
         "Takip No": ["TR8912341", "TR8912342", "TR8912343", "TR8912344", "TR8912345"],
         "Alıcı Adı": ["Tekno A.Ş.", "Mustafa Demir", "Aysun Çelik", "Kaya Lojistik", "Elif Şahin"],
         "Sebep / Problem": ["Adreste Yok / Haber Kağıdı", "Hatalı Adres", "Müşteri Kabul Etmiyor", "Randevulu Teslimat", "Telefon Ulaşılamıyor"],
-        "Sorumlu Kurye": ["Mehmet Y.", "Ali K.", "Caner E.", KULLANICI_ISIM, "Burak Y."],
+        "Sorumlu Kurye": ["Mehmet Y.", "Ali K.", "Caner E.", "Ahmet B.", "Burak Y."],
         "Aksiyon": ["Yarın Tekrar Çıkacak", "Adres Teyidi Bekliyor", "İade Oluşturuldu", "Beklemede", "SMS Gönderildi"]
     })
-    
     st.dataframe(f4_data, use_container_width=True, hide_index=True)
