@@ -1,4 +1,4 @@
-İmport streamlit as st
+import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
@@ -39,6 +39,13 @@ custom_css = """
     [data-testid="stSidebar"] {
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 1rem !important;
+    }
+
+    /* Sidebar Üst Başlık Boşluk Düzenlemesi */
+    .sidebar-header {
+        margin-top: -30px;
+        margin-bottom: 10px;
     }
 
     /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN GENEL EŞİT ÖLÇÜ TEMELİ */
@@ -103,7 +110,7 @@ custom_css = """
         box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
     }
 
-    /* HOVER DUMUMU */
+    /* HOVER DURUMU */
     [data-testid="stSidebar"] div.stButton > button:hover {
         transform: translateY(-2px) !important;
         filter: brightness(1.15) !important;
@@ -216,7 +223,7 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-top: 40px;
+        margin-top: 30px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
@@ -250,11 +257,36 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # SOL TARAF AÇILIR MENÜ (SIDEBAR)
 # ==========================================
 with st.sidebar:
-    # 1. MENÜ BAŞLIĞI
-    st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
-    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
+    # 1. DAHA YUKARI ÇEKİLMİŞ MENÜ BAŞLIĞI
+    st.markdown("""
+        <div class="sidebar-header">
+            <h3 style='margin-bottom:2px; padding-top:0px;'>Yurtiçi Kargo</h3>
+            <h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # 2. SEKMELER (Sırasıyla: 1-Mavi, 2-Turuncu, 3-Beyaz, 4-Mavi)
+    # 2. DOSYA YÜKLE ALANI (Excel & CSV)
+    uploaded_file = st.file_uploader(
+        "Dosya Yükle", 
+        type=["xlsx", "xls", "csv"],
+        help="Lütfen Excel veya CSV formatında bir dosya seçin."
+    )
+    
+    # Dosya yüklendiyse belleğe alma mantığı
+    uploaded_df = None
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                uploaded_df = pd.read_csv(uploaded_file)
+            else:
+                uploaded_df = pd.read_excel(uploaded_file)
+            st.success("Dosya başarıyla yüklendi!")
+        except Exception as e:
+            st.error("Dosya okunamadı!")
+
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:10px; margin-bottom:14px;'>", unsafe_allow_html=True)
+    
+    # 3. SEKMELER
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
@@ -271,7 +303,7 @@ with st.sidebar:
     if btn_f4:
         st.session_state.active_tab = "F4 Ödeme Listesi"
 
-    # 3. PROFİL KARTI (EN ALT KISIMDA)
+    # 4. PROFİL KARTI
     st.markdown(f"""
         <div class="user-profile-card">
             <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol" onerror="this.src='https://ui-avatars.com/api/?name=Celal+Senol&background=F57C00&color=fff'">
