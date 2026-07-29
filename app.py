@@ -20,7 +20,7 @@ KULLANICI_GOREV = "Şube Şefi"
 FOTO_URL = "celal_senol.jpg" 
 
 
-# --- CSS ÖZELLEŞTİRMELERİ (Streamlit Buton Stillerini Ezme) ---
+# --- CSS ÖZELLEŞTİRMELERİ ---
 custom_css = """
 <style>
     /* Ana Arka Plan */
@@ -41,29 +41,28 @@ custom_css = """
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN GENEL EŞİT ÖLÇÜ TEMELİ */
+    /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN ORTAK BOYUT VE HİZALAMA */
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
         height: 54px !important;
         min-height: 54px !important;
         max-height: 54px !important;
         border-radius: 12px !important;
-        padding: 0 14px !important;
+        padding: 0 16px !important;
         font-weight: 700 !important;
-        font-size: 14px !important;
-        margin-bottom: 8px !important;
+        font-size: 15px !important;
+        margin-bottom: 10px !important;
         transition: all 0.2s ease-in-out !important;
         display: flex !important;
         align-items: center !important;
         justify-content: flex-start !important;
         white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        box-sizing: border-box !important;
     }
 
     /* 1. BUTON: ANA PANEL -> MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button:focus {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) button:focus {
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -71,8 +70,8 @@ custom_css = """
     }
 
     /* 2. BUTON: KURYE PERFORMANS -> TURUNCU */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button:focus {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) button:focus {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -80,33 +79,32 @@ custom_css = """
     }
 
     /* 3. BUTON: SEKRETER HESAP -> BEYAZ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button:focus {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button:focus {
         background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
         border: 1px solid #FFFFFF !important;
         box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
     }
     
-    /* Beyaz buton üzerindeki metinleri koyu lacivert yap */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button p,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button span {
+    /* Beyaz buton üzerindeki metinleri görünür yapmak için koyu lacivert yapma */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button * {
         color: #070E1E !important;
         font-weight: 800 !important;
     }
 
     /* 4. BUTON: F4 ÖDEME LİSTESİ -> MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button,
-    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button:focus {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) button:focus {
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
     }
 
-    /* HOVER DUMUMU */
+    /* HOVER DUMUMU (Üzerine Gelince Hafif Yükselme Efekti) */
     [data-testid="stSidebar"] div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        filter: brightness(1.15) !important;
+        filter: brightness(1.12) !important;
     }
 
     /* KPI KARTLARI STİLLERİ (İÇ EKRANLAR) */
@@ -254,7 +252,7 @@ with st.sidebar:
     st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER (Sırasıyla: 1-Mavi, 2-Turuncu, 3-Beyaz, 4-Mavi)
+    # 2. SEKMELER (Sırasıyla: Mavi, Turuncu, Beyaz, Mavi)
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
