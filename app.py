@@ -664,13 +664,13 @@ elif st.session_state.active_tab == "Günlük Hesap":
             st.session_state.kasa_miktari = kasa_val
 
         # Güncellenen Kasa Durum Mantığı (Kasa > Toplam Hesap ise AÇIK)
-        kasa_fark = kasa_val - toplam_hesap
+        kasa_fark = toplam_hesap - kasa_val
 
         with col3:
             if kasa_val > toplam_hesap:
                 durum_metni = "AÇIK"
                 st.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta=f"Durum: {durum_metni}", delta_color="inverse")
-                st.error(f"🚨 Kasa {kasa_fark:,.2f} ₺ **{durum_metni}** veriyor!")
+                st.error(f"🚨 Kasa {abs(kasa_fark):,.2f} ₺ **{durum_metni}** veriyor!")
             else:
                 durum_metni = "TAM"
                 st.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta=f"Durum: {durum_metni}", delta_color="normal")
