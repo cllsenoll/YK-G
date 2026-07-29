@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 import io
 
-# 1. Sayfa Ayarları
+# 1. SAYFA AYARLARI
 st.set_page_config(
     page_title="Yurtiçi Kargo Görükle Acente",
     page_icon="📦",
@@ -42,149 +43,36 @@ custom_css = """
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         margin-bottom: 8px !important;
     }
-
-    /* PERSONEL PERFORMANS KARTI TASARIMI */
-    .person-card {
-        background: rgba(255, 255, 255, 0.03);
+    .kurye-card-box {
+        background-color: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
-        padding: 18px 22px;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    }
-    .person-main-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        padding-bottom: 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .profile-section {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        min-width: 220px;
-    }
-    .avatar-circle {
-        width: 65px;
-        height: 65px;
-        min-width: 65px;
-        min-height: 65px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid #F57C00;
-        background-color: #0B172E;
-    }
-    .person-name {
-        font-size: 16px;
-        font-weight: 700;
-        color: #FFFFFF !important;
-    }
-    .metric-box {
-        text-align: center;
-        flex: 1;
-    }
-    .metric-title {
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.6) !important;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 4px;
-    }
-    .metric-value {
-        font-size: 20px;
-        font-weight: 700;
-    }
-    
-    /* YUVARLAK ÇEMBER GRAFİK ALANI */
-    .chart-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 65px;
-        min-width: 65px;
-    }
-    .chart-label {
-        font-size: 11px;
-        font-weight: 700;
-        margin-top: 4px;
-        color: #4CAF50 !important;
-    }
-
-    /* ALT KANAL DETAY ROZETLERİ */
-    .channel-row {
-        display: flex;
-        gap: 12px;
-        margin-top: 12px;
-        padding-top: 2px;
-    }
-    .channel-badge {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
-        padding: 6px 12px;
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .badge-value {
-        font-weight: 700;
-        color: #F57C00 !important;
+        padding: 20px;
+        margin-bottom: 20px;
     }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# --- SVG YUVALAK ÇEMBER GRAFİK ÜRETİCİ ---
-def generate_pie_svg(success_rate):
-    """Yeşil ve Kırmızı renklerden oluşan 65x65 px SVG tam çember grafik oluşturur."""
-    rate = max(0, min(100, success_rate))
-    if rate == 100:
-        return f"""
-        <svg width="65" height="65" viewBox="0 0 36 36">
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2E7D32" stroke-width="3.8" />
-        </svg>
-        """
-    elif rate == 0:
-        return f"""
-        <svg width="65" height="65" viewBox="0 0 36 36">
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#D32F2F" stroke-width="3.8" />
-        </svg>
-        """
-    
-    stroke_dasharray = f"{rate}, {100 - rate}"
-    return f"""
-    <svg width="65" height="65" viewBox="0 0 36 36" style="transform: rotate(-90deg); border-radius: 50%;">
-        <!-- Kırmızı Arka Plan (Teslim Edilemeyen Oran) -->
-        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#D32F2F" stroke-width="3.8" />
-        <!-- Yeşil Ön Plan (Teslim Edilen Oran) -->
-        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2E7D32" stroke-width="3.8" stroke-dasharray="{stroke_dasharray}" />
-    </svg>
-    """
-
 # ==========================================
-# GÜVENLİ DOSYA OKUMA MOTORU (EXCEL / CSV HANDLER)
+# GÜVENLİ DOSYA OKUMA MOTORU
 # ==========================================
 def load_uploaded_file(uploaded_file):
-    file_bytes = uploaded_file.read()
-    file_name = uploaded_file.name.lower()
-
-    # 1. XLSX / OpenPyXL Denemesi
+    file_bytes = uploaded_file.getvalue()
+    
+    # 1. OpenPyXL (XLSX)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
     except Exception:
         pass
 
-    # 2. XLS / XLRD Denemesi (Eski Excel Biçimleri)
+    # 2. XLRD (Eski XLS)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
     except Exception:
         pass
 
-    # 3. HTML Tablosu Şeklindeki Excel Raporları
+    # 3. HTML Formatında İndirilen Raporlar
     try:
         dfs = pd.read_html(io.BytesIO(file_bytes))
         if dfs:
@@ -192,16 +80,19 @@ def load_uploaded_file(uploaded_file):
     except Exception:
         pass
 
-    # 4. CSV Fallback
+    # 4. CSV UTF-8
     try:
         return pd.read_csv(io.BytesIO(file_bytes), encoding='utf-8')
     except Exception:
-        try:
-            return pd.read_csv(io.BytesIO(file_bytes), encoding='latin1', sep=';')
-        except Exception:
-            pass
+        pass
 
-    raise ValueError("Yüklenen dosya biçimi okunamadı. Lütfen geçerli bir .xlsx, .xls veya .csv dosyası yükleyin.")
+    # 5. CSV Latin-1 / Noktalı Virgül
+    try:
+        return pd.read_csv(io.BytesIO(file_bytes), encoding='latin1', sep=';')
+    except Exception:
+        pass
+
+    raise ValueError("Dosya okunamadı. Lütfen dosyanızın geçerli bir Excel (.xlsx / .xls) veya CSV olduğunu kontrol edin.")
 
 # ==========================================
 # VERİ İŞLEME MOTORU (EXCEL PARSER)
@@ -215,19 +106,19 @@ def process_excel_data(df):
     missing_cols = [col for col in req_cols if col not in df.columns]
     
     if missing_cols:
-        st.error(f"❌ Excel dosyasında şu sütunlar bulunamadı: {', '.join(missing_cols)}")
-        st.write("📌 **Dosyanızda Bulunan Sütunlar:**", list(df.columns))
+        st.error(f"❌ Excel dosyasında şu sütunlar eksik: {', '.join(missing_cols)}")
+        st.info(f"📋 Dosyanızdaki Mevcut Sütunlar: {list(df.columns)}")
         return None
 
-    # Açıklama Sütununu Kontrol Et
     has_aciklama = "Açıklama" in df.columns
 
-    # Mantıksal Gruplamalar
+    # Teslim Mantığı: AT Zimmet Personel Adı == Teslim Eden Personel
     def check_delivery(row):
         zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
         teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
         return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
 
+    # Kanal Mantığı: Kontrol Sende veya POS Entegrasyon -> KS-PE
     def get_channel_type(row):
         kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
         aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
@@ -243,7 +134,7 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    # Personel Bazlı Özet Tablo
+    # Personel Bazlı Gruplama (Tamamen Excel'deki İsimlerden Oluşur)
     personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
     summary = []
 
@@ -261,7 +152,7 @@ def process_excel_data(df):
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
         
-        # Teslimat kanalları yalnızca Başarılı Teslimatlar üzerinden hesaplanır
+        # Kanal Dağılımları (Başarılı Teslimatlar İçin)
         sms_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "SMS"])
         imza_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "İMZA"])
         ks_pe_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "KS-PE"])
@@ -280,7 +171,7 @@ def process_excel_data(df):
     return pd.DataFrame(summary)
 
 # ==========================================
-# SIDEBAR (DOSYA YÜKLEME VE MENÜ)
+# SIDEBAR (DOSYA YÜKLEME)
 # ==========================================
 with st.sidebar:
     st.markdown("### Yurtiçi Kargo<br><small style='color:#F57C00;'>Görükle Acente</small>", unsafe_allow_html=True)
@@ -298,79 +189,75 @@ with st.sidebar:
 # ==========================================
 st.subheader("🏃‍♂️ Kurye Performans Paneli")
 
-perf_df = None
-
 if uploaded_file is not None:
     try:
         raw_df = load_uploaded_file(uploaded_file)
         perf_df = process_excel_data(raw_df)
-    except Exception as e:
-        st.error(f"Excel/Dosya okunurken hata oluştu: {e}")
-else:
-    st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
-    # Örnek Önizleme Verisi
-    perf_df = pd.DataFrame([
-        {"Personel": "AHMET BERKANT ÖKSÜZ", "Zimmet": 150, "Teslim Edilen": 142, "Teslim Edilemeyen": 8, "Başarı Oranı": 94.7, "SMS": 100, "İmza": 30, "KS-PE": 12},
-        {"Personel": "MEHMET YILMAZ", "Zimmet": 120, "Teslim Edilen": 100, "Teslim Edilemeyen": 20, "Başarı Oranı": 83.3, "SMS": 70, "İmza": 20, "KS-PE": 10}
-    ])
-
-if perf_df is not None and not perf_df.empty:
-    
-    # Personelleri Alt Alta Listele
-    for _, row in perf_df.iterrows():
-        p_name = row["Personel"]
-        zimmet = row["Zimmet"]
-        teslim = row["Teslim Edilen"]
-        devir = row["Teslim Edilemeyen"]
-        rate = row["Başarı Oranı"]
-        sms = row["SMS"]
-        imza = row["İmza"]
-        ks_pe = row["KS-PE"]
         
-        svg_chart = generate_pie_svg(rate)
-        avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true"
-
-        card_html = f"""
-        <div class="person-card">
-            <!-- ÜST SATIR: RESİM, İSİM, ZİMMET, TESLİM, DEVİR, ÇEMBER GRAFİK -->
-            <div class="person-main-row">
-                <div class="profile-section">
-                    <img src="{avatar_url}" class="avatar-circle" alt="{p_name}">
-                    <div class="person-name">{p_name}</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Zimmet Sayısı</div>
-                    <div class="metric-value" style="color: #FFFFFF;">{zimmet}</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Teslim Edilen</div>
-                    <div class="metric-value" style="color: #4CAF50;">{teslim}</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Teslim Edilemeyen</div>
-                    <div class="metric-value" style="color: #F44336;">{devir}</div>
-                </div>
-                <div class="chart-container">
-                    {svg_chart}
-                    <div class="chart-label">%{rate}</div>
-                </div>
-            </div>
+        if perf_df is not None and not perf_df.empty:
+            st.success(f"✅ Excel başarıyla işlendi. Toplam **{len(perf_df)}** kurye listelendi.")
             
-            <!-- ALT SATIR: KARGO TESLİMAT KANALLARI -->
-            <div class="channel-row">
-                <div class="channel-badge">
-                    <span>📲 SMS:</span>
-                    <span class="badge-value">{sms}</span>
-                </div>
-                <div class="channel-badge">
-                    <span>✍️ İMZA:</span>
-                    <span class="badge-value">{imza}</span>
-                </div>
-                <div class="channel-badge">
-                    <span>🚪 KS-PE:</span>
-                    <span class="badge-value">{ks_pe}</span>
-                </div>
-            </div>
-        </div>
-        """
-        st.markdown(card_html, unsafe_allow_html=True)
+            # Personelleri Alt Alta Kart Yapısında Göster
+            for _, row in perf_df.iterrows():
+                p_name = row["Personel"]
+                zimmet = row["Zimmet"]
+                teslim = row["Teslim Edilen"]
+                devir = row["Teslim Edilemeyen"]
+                rate = row["Başarı Oranı"]
+                sms = row["SMS"]
+                imza = row["İmza"]
+                ks_pe = row["KS-PE"]
+
+                with st.container():
+                    st.markdown(f"### 👤 {p_name}")
+                    
+                    col_img, col_z, col_t, col_d, col_chart = st.columns([1, 1, 1, 1, 1.2])
+                    
+                    with col_img:
+                        avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
+                        st.image(avatar_url, width=70)
+                        
+                    with col_z:
+                        st.metric("Zimmet Sayısı", zimmet)
+                        
+                    with col_t:
+                        st.metric("Teslim Edilen", teslim)
+                        
+                    with col_d:
+                        st.metric("Teslim Edilemeyen", devir)
+                        
+                    with col_chart:
+                        # Çember Grafik (Plotly Donut Chart)
+                        fig = go.Figure(data=[go.Pie(
+                            labels=['Teslim', 'Devir'],
+                            values=[teslim, devir],
+                            hole=0.65,
+                            marker_colors=['#2E7D32', '#D32F2F'],
+                            textinfo='none',
+                            hoverinfo='label+value'
+                        )])
+                        fig.update_layout(
+                            showlegend=False,
+                            margin=dict(l=0, r=0, t=0, b=0),
+                            height=75,
+                            width=75,
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            annotations=[dict(
+                                text=f"<b>%{rate:.0f}</b>",
+                                x=0.5, y=0.5,
+                                font_size=12,
+                                font_color="white",
+                                showarrow=False
+                            )]
+                        )
+                        st.plotly_chart(fig, use_container_width=False, config={'displayModeBar': False})
+
+                    # Kanal Bilgileri Detay Satırı
+                    st.caption(f"📲 **SMS:** {sms} adet &nbsp;&nbsp;|&nbsp;&nbsp; ✍️ **İmza:** {imza} adet &nbsp;&nbsp;|&nbsp;&nbsp; 🚪 **KS-PE:** {ks_pe} adet")
+                    st.markdown("---")
+
+    except Exception as e:
+        st.error(f"❌ Dosya okunurken hata oluştu: {e}")
+else:
+    st.info("💡 Lütfen verilerin hesaplanması için sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyin.")
