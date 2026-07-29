@@ -18,6 +18,15 @@ st.set_page_config(
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Ana Panel"
 
+if 'perf_df' not in st.session_state:
+    st.session_state.perf_df = None
+
+if 'account_df' not in st.session_state:
+    st.session_state.account_df = None
+
+if 'raw_df' not in st.session_state:
+    st.session_state.raw_df = None
+
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
@@ -472,34 +481,29 @@ with st.sidebar:
 # ==========================================
 # VERİ YÜKLEME VE İŞLEME AŞAMASI
 # ==========================================
-perf_df = None
-account_df = None
-raw_df = None
-missing_columns = None
-
 if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
-        # Hangi dosya türü olduğuna karar verelim
-        cols_str = " ".join([str(c).upper() for c in raw_df.columns])
+        st.session_state.raw_df = raw_df
         
-        # İçerik satırlarında da kontrol edelim
-        full_text_check = cols_str
+        full_text_check = " ".join([str(c).upper() for c in raw_df.columns])
         for _, r in raw_df.head(5).iterrows():
             full_text_check += " " + " ".join([str(v).upper() for v in r.values])
 
         if "AT ZİMMET PERSONEL ADI" in full_text_check or "TESLİM EDEN PERSONEL" in full_text_check:
-            perf_df, missing_columns = process_excel_data(raw_df)
+            st.session_state.perf_df, _ = process_excel_data(raw_df)
         elif "PERSONEL" in full_text_check or "NAKİT" in full_text_check or "FT" in full_text_check:
-            account_df = process_personnel_account_data(raw_df)
-            st.session_state.account_df = account_df
+            st.session_state.account_df = process_personnel_account_data(raw_df)
         else:
-            # Genel bir deneme yapalım
+            # Akıllı Tahmin / Zorlama Denemesi
             try:
-                perf_df, missing_columns = process_excel_data(raw_df)
+                res_p, missing = process_excel_data(raw_df)
+                if res_p is not None and not res_p.empty:
+                    st.session_state.perf_df = res_p
+                else:
+                    st.session_state.account_df = process_personnel_account_data(raw_df)
             except:
-                account_df = process_personnel_account_data(raw_df)
-                st.session_state.account_df = account_df
+                st.session_state.account_df = process_personnel_account_data(raw_df)
     except Exception as e:
         st.error(f"❌ Dosya Okuma Hatası: {e}")
 
@@ -508,6 +512,8 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
+    
+    perf_df = st.session_state.perf_df
     
     if perf_df is not None and not perf_df.empty:
         total_zimmet = perf_df["Zimmet"].sum()
@@ -557,9 +563,9 @@ if st.session_state.active_tab == "Ana Panel":
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
         
-    elif raw_df is not None and missing_columns is not None:
-        st.success("✅ Dosya başarıyla okundu!")
-        raw_display = raw_df.copy()
+    elif st.session_state.raw_df is not None:
+        st.info("ℹ️ Yüklenen dosya **Personel Hesap Alımı** (Ödeme Listesi) formatındadır. Bu dosya içeriği **Hesap** sekmesinde görüntülenmektedir.")
+        raw_display = st.session_state.raw_df.copy()
         raw_display.index = range(1, len(raw_display) + 1)
         st.dataframe(raw_display, use_container_width=True)
     else:
@@ -571,8 +577,10 @@ if st.session_state.active_tab == "Ana Panel":
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
     
+    perf_df = st.session_state.perf_df
+    
     if perf_df is not None and not perf_df.empty:
-        st.success(f"✅ AT ZİMMET İZLEME raporu başarıyla işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
+        st.success(f"✅ AT ZİMMET İZLEME raporu işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
         
         for idx, row in perf_df.iterrows():
             p_name = row["Personel"]
@@ -623,7 +631,7 @@ elif st.session_state.active_tab == "Kurye Performans":
             st.markdown(card_html, unsafe_allow_html=True)
 
     else:
-        st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden uygun **AT ZİMMET İZLEME** dosyasını yükleyin.")
+        st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden uygun **AT ZİMMET İZLEME** dosyasını yükleyin. (Yüklediğiniz son dosya Hesap Alımı listesidir, hesaplar için **Hesap** sekmesini kullanabilirsiniz.)")
 
 # ==========================================
 # TAB 3: HESAP EKRANI (Günlük Hesap Takibi)
@@ -632,8 +640,11 @@ elif st.session_state.active_tab == "Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
     st.caption("✍️ Değerleri değiştirdiğinizde **Hesap** alanı canlı olarak güncellenir.")
 
-    if 'account_df' not in st.session_state:
-        st.session_state.account_df = None
+    if st.session_state.account_df is None and st.session_state.raw_df is not None:
+        try:
+            st.session_state.account_df = process_personnel_account_data(st.session_state.raw_df)
+        except Exception:
+            pass
 
     active_account_df = st.session_state.account_df
 
