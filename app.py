@@ -108,61 +108,53 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# TÜM YURTİÇİ KARGO DOSYA TÜRLERİNİ OKUYAN MOTOR
+# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
 # ==========================================
-def load_uploaded_file(uploaded_file):
+def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
+    filename = str(uploaded_file.name).lower()
 
-    # 1. Türkçe Windows CSV (CP1254/ISO-8859-9 - Noktalı Virgül) -> F4 ÖDEME LİSTESİ dahil
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='cp1254')
-    except Exception:
-        pass
+    # A) CSV / Metin Formatları Denemesi
+    encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
+    separators = [';', ',', '\t', None]
 
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='iso-8859-9')
-    except Exception:
-        pass
+    for enc in encodings:
+        for sep in separators:
+            try:
+                engine_type = 'python' if sep is None else None
+                df = pd.read_csv(
+                    io.BytesIO(file_bytes),
+                    sep=sep,
+                    encoding=enc,
+                    engine=engine_type,
+                    on_bad_lines='skip'
+                )
+                if df is not None and len(df.columns) > 1 and len(df) > 0:
+                    return df
+            except Exception:
+                continue
 
-    # 2. HTML Tablosu Çıktıları (Sistem XLS raporları)
-    try:
-        dfs = pd.read_html(io.BytesIO(file_bytes), encoding='utf-8')
-        if dfs and len(dfs) > 0:
-            return dfs[0]
-    except Exception:
-        pass
-
-    try:
-        dfs = pd.read_html(io.BytesIO(file_bytes), encoding='latin1')
-        if dfs and len(dfs) > 0:
-            return dfs[0]
-    except Exception:
-        pass
-
-    # 3. XLSX (OpenPyXL)
+    # B) Gerçek Excel Formatları Denemesi (.xlsx / .xls)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
     except Exception:
         pass
 
-    # 4. XLS (XLRD)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
     except Exception:
         pass
 
-    # 5. Standart UTF-8 CSV
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='utf-8')
-    except Exception:
-        pass
+    # C) HTML Tablosu Şeklindeki Süslü Excel Çıktıları
+    for enc in ['utf-8', 'cp1254', 'latin1']:
+        try:
+            dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
+            if dfs and len(dfs) > 0:
+                return dfs[0]
+        except Exception:
+            continue
 
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), encoding='utf-8')
-    except Exception:
-        pass
-
-    raise ValueError("Dosya okunamadı. Lütfen geçerli bir Excel (.xlsx / .xls) veya CSV dosyası yükleyin.")
+    raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
 # AT ZİMMET İZLEME VERİ İŞLEME MOTORU
@@ -274,7 +266,7 @@ missing_columns = None
 
 if uploaded_file is not None:
     try:
-        raw_df = load_uploaded_file(uploaded_file)
+        raw_df = smart_read_file(uploaded_file)
         perf_df, missing_columns = process_excel_data(raw_df)
     except Exception as e:
         st.error(f"❌ Dosya Okuma Hatası: {e}")
@@ -334,8 +326,8 @@ if st.session_state.active_tab == "Ana Panel":
         st.dataframe(perf_df, use_container_width=True)
         
     elif raw_df is not None and missing_columns is not None:
-        st.success("✅ Dosya başarıyla yüklendi!")
-        st.info("ℹ️ Yüklenen dosya (Örn: F4 Ödeme Listesi) borç/cari verileri içeriyor. Sayfa altından tabloyu inceleyebilirsiniz.")
+        st.success("✅ Dosya başarıyla okundu!")
+        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste (Örn: F4 Ödeme Listesi). Veriler aşağıda listelenmiştir:")
         st.dataframe(raw_df, use_container_width=True)
     else:
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
