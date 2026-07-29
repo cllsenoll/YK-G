@@ -5,7 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import base64
-import unicodedata
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -115,7 +114,6 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # İSİM METNİ OTOMATİK NORMALİZASYON FONKSİYONU
 # ==========================================
 def normalize_name(name_str):
-    """Metin karşılaştırmalarında büyük/küçük harf ve Türkçe karakter farkını ortadan kaldırır."""
     if not name_str:
         return ""
     name_str = str(name_str).strip().upper()
@@ -125,30 +123,38 @@ def normalize_name(name_str):
     return name_str
 
 # ==========================================
-# OTOMATİK KURYE FOTOĞRAFI ALMA (Sadece Kurye Panelinde Kullanılır)
+# OTOMATİK KURYE FOTOĞRAFI ALMA (HEM DEPO HEM KLASÖR DESTEKLİ)
 # ==========================================
-def get_courier_photo(courier_name, folder_path="kuryeler"):
-    """
-    'kuryeler' klasöründeki dosyalarla kurye ismini eşleştirir.
-    Eğer fotoğraf yoksa varsayılan renkli avatar üretir.
-    """
+def get_courier_photo(courier_name):
     norm_courier = normalize_name(courier_name)
     
-    if os.path.exists(folder_path):
-        for file in os.listdir(folder_path):
-            file_name_without_ext = os.path.splitext(file)[0]
-            if normalize_name(file_name_without_ext) == norm_courier:
-                full_path = os.path.join(folder_path, file)
-                ext = os.path.splitext(file)[1].lower().replace('.', '')
-                if ext in ['jpg', 'jpeg', 'png', 'webp']:
-                    try:
-                        with open(full_path, "rb") as image_file:
-                            encoded_string = base64.b64encode(image_file.read()).decode()
-                            return f"data:image/{ext};base64,{encoded_string}"
-                    except Exception:
-                        pass
+    # Aranacak dizinler: Önce 'kuryeler' klasörü, sonra ana Depo dizini '.'
+    search_dirs = []
+    if os.path.exists("kuryeler"):
+        search_dirs.append("kuryeler")
+    search_dirs.append(".") # Ana Depo Dizinı
+
+    for target_dir in search_dirs:
+        try:
+            for file in os.listdir(target_dir):
+                file_path = os.path.join(target_dir, file)
+                # Klasörleri atla, sadece dosyaları incele
+                if os.path.isfile(file_path):
+                    file_name_without_ext = os.path.splitext(file)[0]
+                    if normalize_name(file_name_without_ext) == norm_courier:
+                        ext = os.path.splitext(file)[1].lower().replace('.', '')
+                        if ext in ['png', 'jpg', 'jpeg', 'webp']:
+                            try:
+                                with open(file_path, "rb") as image_file:
+                                    encoded_string = base64.b64encode(image_file.read()).decode()
+                                    mime_type = "image/png" if ext == "png" else f"image/{ext}"
+                                    return f"data:{mime_type};base64,{encoded_string}"
+                            except Exception:
+                                pass
+        except Exception:
+            continue
                         
-    # Fotoğraf bulunamazsa fallback varsayılan avatar
+    # Fotoğraf hiçbir yerde bulunamazsa gösterilecek varsayılan avatar
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
@@ -380,7 +386,7 @@ if st.session_state.active_tab == "Ana Panel":
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
 
 # ==========================================
-# TAB 2: KURYE PERFORMANS PANELİ (ÖZEL PROFiL RESMİ KULLANIMI)
+# TAB 2: KURYE PERFORMANS PANELİ
 # ==========================================
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
@@ -398,7 +404,7 @@ elif st.session_state.active_tab == "Kurye Performans":
             imza = row["İmza"]
             ks_pe = row["KS-PE"]
 
-            # Fotoğraf SADECE bu sekmeye özel olarak klasörden otomatik çekiliyor
+            # Depoya veya klasöre yüklenen resimler otomatik bulunur
             avatar_url = get_courier_photo(p_name)
 
             card_html = f"""
