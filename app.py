@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import base64
+import re
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -113,22 +114,23 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # ==========================================
 # İSİM METNİ OTOMATİK NORMALİZASYON FONKSİYONU
 # ==========================================
-def normalize_name(name_str):
-    if not name_str:
+def clean_string(text):
+    if not text:
         return ""
-    name_str = str(name_str).strip().upper()
+    text = str(text).upper().strip()
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
     for search, replace in replacements.items():
-        name_str = name_str.replace(search, replace)
-    return name_str
+        text = text.replace(search, replace)
+    # Sadece harf ve rakamları bırak, boşluk/özel karakterleri temizle
+    text = re.sub(r'[^A-Z0-9]', '', text)
+    return text
 
 # ==========================================
-# OTOMATİK KURYE FOTOĞRAFI ALMA (HEM DEPO HEM KLASÖR DESTEKLİ)
+# OTOMATİK KURYE FOTOĞRAFI ALMA (GELİŞMİŞ EŞLEŞTİRME)
 # ==========================================
 def get_courier_photo(courier_name):
-    norm_courier = normalize_name(courier_name)
+    clean_courier = clean_string(courier_name)
     
-    # Aranacak dizinler: Önce 'kuryeler' klasörü, sonra ana Depo dizini '.'
     search_dirs = []
     if os.path.exists("kuryeler"):
         search_dirs.append("kuryeler")
@@ -136,14 +138,16 @@ def get_courier_photo(courier_name):
 
     for target_dir in search_dirs:
         try:
-            for file in os.listdir(target_dir):
+            files = os.listdir(target_dir)
+            
+            # 1. Aşama: Tam Eşleşme Kontrolü
+            for file in files:
                 file_path = os.path.join(target_dir, file)
-                # Klasörleri atla, sadece dosyaları incele
                 if os.path.isfile(file_path):
-                    file_name_without_ext = os.path.splitext(file)[0]
-                    if normalize_name(file_name_without_ext) == norm_courier:
-                        ext = os.path.splitext(file)[1].lower().replace('.', '')
-                        if ext in ['png', 'jpg', 'jpeg', 'webp']:
+                    ext = os.path.splitext(file)[1].lower().replace('.', '')
+                    if ext in ['png', 'jpg', 'jpeg', 'webp']:
+                        file_name_clean = clean_string(os.path.splitext(file)[0])
+                        if file_name_clean == clean_courier:
                             try:
                                 with open(file_path, "rb") as image_file:
                                     encoded_string = base64.b64encode(image_file.read()).decode()
@@ -151,10 +155,27 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
+
+            # 2. Aşama: Esnek/Kısmi Eşleşme Kontrolü (İçerme)
+            for file in files:
+                file_path = os.path.join(target_dir, file)
+                if os.path.isfile(file_path):
+                    ext = os.path.splitext(file)[1].lower().replace('.', '')
+                    if ext in ['png', 'jpg', 'jpeg', 'webp']:
+                        file_name_clean = clean_string(os.path.splitext(file)[0])
+                        if file_name_clean and clean_courier and (file_name_clean in clean_courier or clean_courier in file_name_clean):
+                            try:
+                                with open(file_path, "rb") as image_file:
+                                    encoded_string = base64.b64encode(image_file.read()).decode()
+                                    mime_type = "image/png" if ext == "png" else f"image/{ext}"
+                                    return f"data:{mime_type};base64,{encoded_string}"
+                            except Exception:
+                                pass
+
         except Exception:
             continue
                         
-    # Fotoğraf hiçbir yerde bulunamazsa gösterilecek varsayılan avatar
+    # Fotoğraf hiçbir şekilde bulunamazsa varsayılan avatar
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
@@ -404,7 +425,6 @@ elif st.session_state.active_tab == "Kurye Performans":
             imza = row["İmza"]
             ks_pe = row["KS-PE"]
 
-            # Depoya veya klasöre yüklenen resimler otomatik bulunur
             avatar_url = get_courier_photo(p_name)
 
             card_html = f"""
