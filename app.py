@@ -22,11 +22,9 @@ KULLANICI_GOREV = "Şube Şefi"
 # --- CSS VE TRANSLATE KORUMA KODLARI ---
 custom_css = """
 <style>
-    /* Google Translate DOM Bozma Engeli */
     .notranslate {
         translate: no !important;
     }
-    
     .stApp {
         background-color: #070E1E;
         color: #FFFFFF;
@@ -35,8 +33,6 @@ custom_css = """
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
-    
-    /* SIDEBAR STİLİ */
     [data-testid="stSidebar"] {
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -57,8 +53,6 @@ custom_css = """
         background: linear-gradient(135deg, #0D6EFD 0%, #0A58CA 100%) !important;
         border-color: #F57C00 !important;
     }
-
-    /* KART KONTENYERI */
     .person-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -114,12 +108,23 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# GÜVENLİ DOSYA OKUMA MOTORU (HTML/XML/CSV/EXCEL)
+# TÜM YURTİÇİ KARGO DOSYA TÜRLERİNİ OKUYAN MOTOR
 # ==========================================
 def load_uploaded_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
 
-    # 1. HTML Tablosu Şeklindeki Excel Çıktıları
+    # 1. Türkçe Windows CSV (CP1254/ISO-8859-9 - Noktalı Virgül) -> F4 ÖDEME LİSTESİ dahil
+    try:
+        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='cp1254')
+    except Exception:
+        pass
+
+    try:
+        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='iso-8859-9')
+    except Exception:
+        pass
+
+    # 2. HTML Tablosu Çıktıları (Sistem XLS raporları)
     try:
         dfs = pd.read_html(io.BytesIO(file_bytes), encoding='utf-8')
         if dfs and len(dfs) > 0:
@@ -134,36 +139,30 @@ def load_uploaded_file(uploaded_file):
     except Exception:
         pass
 
-    # 2. OpenPyXL (XLSX)
+    # 3. XLSX (OpenPyXL)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
     except Exception:
         pass
 
-    # 3. XLRD (Eski XLS)
+    # 4. XLS (XLRD)
     try:
         return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
     except Exception:
         pass
 
-    # 4. Noktalı Virgül Ayırmalı CSV
+    # 5. Standart UTF-8 CSV
     try:
         return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='utf-8')
     except Exception:
         pass
 
     try:
-        return pd.read_csv(io.BytesIO(file_bytes), sep=';', encoding='latin1')
-    except Exception:
-        pass
-
-    # 5. Standart Virgül Ayırmalı CSV
-    try:
         return pd.read_csv(io.BytesIO(file_bytes), encoding='utf-8')
     except Exception:
         pass
 
-    raise ValueError("Dosya formatı okunamadı. Lütfen geçerli bir Excel (.xlsx / .xls) veya CSV raporu yükleyin.")
+    raise ValueError("Dosya okunamadı. Lütfen geçerli bir Excel (.xlsx / .xls) veya CSV dosyası yükleyin.")
 
 # ==========================================
 # AT ZİMMET İZLEME VERİ İŞLEME MOTORU
@@ -175,9 +174,7 @@ def process_excel_data(df):
     missing_cols = [col for col in req_cols if col not in df.columns]
     
     if missing_cols:
-        st.error(f"❌ Yüklenen dosyada şu eksik sütunlar var: {', '.join(missing_cols)}")
-        st.info(f"📋 Dosyadaki Mevcut Sütunlar: {list(df.columns)}")
-        return None
+        return None, missing_cols
 
     has_aciklama = "Açıklama" in df.columns
 
@@ -233,7 +230,7 @@ def process_excel_data(df):
             "KS-PE": ks_pe_cnt
         })
 
-    return pd.DataFrame(summary)
+    return pd.DataFrame(summary), None
 
 # ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
@@ -248,7 +245,6 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # Kullanıcı Profili
     st.markdown(f"""
     <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
         <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
@@ -256,7 +252,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("📂 AT ZİMMET İZLEME Dosyası", type=None)
+    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=None)
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -273,16 +269,18 @@ with st.sidebar:
 # VERİ YÜKLEME VE İŞLEME AŞAMASI
 # ==========================================
 perf_df = None
+raw_df = None
+missing_columns = None
 
 if uploaded_file is not None:
     try:
         raw_df = load_uploaded_file(uploaded_file)
-        perf_df = process_excel_data(raw_df)
+        perf_df, missing_columns = process_excel_data(raw_df)
     except Exception as e:
-        st.error(f"❌ Dosya İşleme Hatası: {e}")
+        st.error(f"❌ Dosya Okuma Hatası: {e}")
 
 # ==========================================
-# TAB 1: ANA PANEL (ÖZET & GENEL BAKIŞ)
+# TAB 1: ANA PANEL
 # ==========================================
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
@@ -301,7 +299,6 @@ if st.session_state.active_tab == "Ana Panel":
         
         st.markdown("---")
         
-        # Grafik Satırı
         col_left, col_right = st.columns(2)
         
         with col_left:
@@ -336,8 +333,12 @@ if st.session_state.active_tab == "Ana Panel":
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
         
+    elif raw_df is not None and missing_columns is not None:
+        st.success("✅ Dosya başarıyla yüklendi!")
+        st.info("ℹ️ Yüklenen dosya (Örn: F4 Ödeme Listesi) borç/cari verileri içeriyor. Sayfa altından tabloyu inceleyebilirsiniz.")
+        st.dataframe(raw_df, use_container_width=True)
     else:
-        st.info("💡 Sol menüden **AT ZİMMET İZLEME** rapor dosyasını yükleyerek Ana Panel verilerini anlık analiz edebilirsiniz.")
+        st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
 
 # ==========================================
 # TAB 2: KURYE PERFORMANS PANELİ
@@ -346,7 +347,7 @@ elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
     
     if perf_df is not None and not perf_df.empty:
-        st.success(f"✅ Rapor başarıyla yüklendi. Bulunan Kurye Sayısı: **{len(perf_df)}**")
+        st.success(f"✅ AT ZİMMET İZLEME raporu başarıyla işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
         
         for _, row in perf_df.iterrows():
             p_name = row["Personel"]
@@ -360,7 +361,6 @@ elif st.session_state.active_tab == "Kurye Performans":
 
             avatar_url = f"https://ui-avatars.com/api/?name={p_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
-            # Safe HTML Container Render
             card_html = f"""
             <div class="person-card notranslate">
                 <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
@@ -398,7 +398,7 @@ elif st.session_state.active_tab == "Kurye Performans":
             st.markdown(card_html, unsafe_allow_html=True)
             
     else:
-        st.warning("⚠️ Kurye performans verilerini görmek için sol menüden AT ZİMMET İZLEME dosyasını yükleyin.")
+        st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
 # TAB 3: OPERATÖR PERFORMANS PANELİ
@@ -409,6 +409,8 @@ elif st.session_state.active_tab == "Operatör Performans":
     if perf_df is not None and not perf_df.empty:
         st.subheader("📌 Acente İçi Teslimat İşlemleri")
         st.dataframe(perf_df[["Personel", "Teslim Edilen", "İmza", "KS-PE"]], use_container_width=True)
+    elif raw_df is not None:
+        st.dataframe(raw_df, use_container_width=True)
     else:
         st.info("💡 Operatör verileri için sol taraftan dosyanızı yükleyin.")
 
@@ -426,5 +428,7 @@ elif st.session_state.active_tab == "Genel Raporlama":
         ])
         fig_comp.update_layout(barmode='stack', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
         st.plotly_chart(fig_comp, use_container_width=True)
+    elif raw_df is not None:
+        st.dataframe(raw_df, use_container_width=True)
     else:
         st.info("💡 Grafik analizi için dosya yüklemesi yapın.")
