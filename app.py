@@ -121,7 +121,6 @@ def clean_string(text):
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
     for search, replace in replacements.items():
         text = text.replace(search, replace)
-    # Sadece harf ve rakamları bırak, boşluk/özel karakterleri temizle
     text = re.sub(r'[^A-Z0-9]', '', text)
     return text
 
@@ -134,13 +133,12 @@ def get_courier_photo(courier_name):
     search_dirs = []
     if os.path.exists("kuryeler"):
         search_dirs.append("kuryeler")
-    search_dirs.append(".") # Ana Depo Dizinı
+    search_dirs.append(".")
 
     for target_dir in search_dirs:
         try:
             files = os.listdir(target_dir)
             
-            # 1. Aşama: Tam Eşleşme Kontrolü
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -156,7 +154,6 @@ def get_courier_photo(courier_name):
                             except Exception:
                                 pass
 
-            # 2. Aşama: Esnek/Kısmi Eşleşme Kontrolü (İçerme)
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -175,7 +172,6 @@ def get_courier_photo(courier_name):
         except Exception:
             continue
                         
-    # Fotoğraf hiçbir şekilde bulunamazsa varsayılan avatar
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
@@ -296,6 +292,39 @@ def process_excel_data(df):
     return res_df, None
 
 # ==========================================
+# PERSONEL HESAP ALIMI EKRANI PARSER (GÜNLÜK HESAP İÇİN)
+# ==========================================
+def process_personnel_account_data(df):
+    df.columns = df.columns.astype(str).str.strip()
+    
+    # Esnek sütun eşleştirme haritası
+    col_mapping = {}
+    for col in df.columns:
+        c_upper = col.upper()
+        if "PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper:
+            col_mapping["Personel Adı"] = col
+        elif "FT" in c_upper or "NAKİT FT" in c_upper or "FATURA" in c_upper:
+            col_mapping["Nakit Ft Tutarı Top"] = col
+        elif "ÖDEME" in c_upper or "NAKİT ÖDEME" in c_upper:
+            col_mapping["Nakit Ödeme Tutarı Topl"] = col
+        elif "BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper:
+            col_mapping["Banka/ATM"] = col
+        elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper or "NOT" in c_upper:
+            col_mapping["Açıklama"] = col
+
+    result_df = pd.DataFrame()
+    
+    # Var olan sütunları aktar, yoksa varsayılan boş bırak
+    result_df["Personel Adı"] = df[col_mapping["Personel Adı"]] if "Personel Adı" in col_mapping else df.iloc[:, 0]
+    result_df["Nakit Ft Tutarı Top"] = df[col_mapping["Nakit Ft Tutarı Top"]] if "Nakit Ft Tutarı Top" in col_mapping else 0.0
+    result_df["Nakit Ödeme Tutarı Topl"] = df[col_mapping["Nakit Ödeme Tutarı Topl"]] if "Nakit Ödeme Tutarı Topl" in col_mapping else 0.0
+    result_df["Banka/ATM"] = df[col_mapping["Banka/ATM"]] if "Banka/ATM" in col_mapping else 0.0
+    result_df["Açıklama"] = df[col_mapping["Açıklama"]] if "Açıklama" in col_mapping else ""
+    result_df["İşlem"] = False  # Varsayılan olarak işaretlenmemiş (Checkbox)
+
+    return result_df
+
+# ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
 # ==========================================
 with st.sidebar:
@@ -323,8 +352,8 @@ with st.sidebar:
         st.session_state.active_tab = "Ana Panel"
     if st.button("🏃‍♂️ Kurye Performans"):
         st.session_state.active_tab = "Kurye Performans"
-    if st.button("📋 Personel Teslimat Kanalları"):
-        st.session_state.active_tab = "Personel Teslimat Kanalları"
+    if st.button("📋 Günlük Hesap"):
+        st.session_state.active_tab = "Günlük Hesap"
     if st.button("📈 Genel Grafikler & Rapor"):
         st.session_state.active_tab = "Genel Raporlama"
 
@@ -404,7 +433,7 @@ if st.session_state.active_tab == "Ana Panel":
         raw_display.index = range(1, len(raw_display) + 1)
         st.dataframe(raw_display, use_container_width=True)
     else:
-        st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
+        st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyerek paneli kullanabilirsiniz.")
 
 # ==========================================
 # TAB 2: KURYE PERFORMANS PANELİ
@@ -467,23 +496,53 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: PERSONEL TESLİMAT KANALLARI
+# TAB 3: GÜNLÜK HESAP (MANUEL DÜZELTME & İŞLEM KUTUCUKLU)
 # ==========================================
-elif st.session_state.active_tab == "Personel Teslimat Kanalları":
-    st.title("📋 Personel Teslimat Kanalları")
+elif st.session_state.active_tab == "Günlük Hesap":
+    st.title("📋 Günlük Personel Hesap Takip Tablosu")
+    st.caption("✍️ Tablodaki değerleri doğrudan hücrelerin üzerine tıklayarak manuel düzeltebilirsiniz. İşlem kutucuğu işaretlenen personeller yeşil renge bürünür.")
     
-    if perf_df is not None and not perf_df.empty:
-        st.subheader("📌 Personel Bazlı Teslimat Kanal Sayıları")
-        channel_table = perf_df[["Personel", "Teslim Edilen", "SMS", "İmza", "KS-PE"]]
-        st.dataframe(channel_table, use_container_width=True)
+    if raw_df is not None:
+        # Oturumda saklanan veri kontrolü
+        if "hesap_df" not in st.session_state or st.sidebar.button("🔄 Dosyadan Yeniden Yükle"):
+            st.session_state.hesap_df = process_personnel_account_data(raw_df)
+            
+        edited_df = st.session_state.hesap_df.copy()
+
+        # Tablo Stil Fonksiyonu: İşlem true ise yeşil arka plan yap
+        def highlight_processed(s):
+            if s.name == 'Personel Adı':
+                return ['background-color: #1b5e20; color: #ffffff; font-weight: bold;' if is_chk else '' for is_chk in edited_df['İşlem']]
+            return ['' for _ in s]
+
+        # Interaktif Düzenlenebilir Tablo
+        data_editor_result = st.data_editor(
+            edited_df,
+            column_config={
+                "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
+                "Nakit Ft Tutarı Top": st.column_config.NumberColumn("Nakit Ft Tutarı Top", format="%.2f ₺"),
+                "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme Tutarı Topl", format="%.2f ₺"),
+                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM", format="%.2f ₺"),
+                "Açıklama": st.column_config.TextColumn("Açıklama"),
+                "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
+            },
+            disabled=[], # Tüm sütunlar manuel olarak düzenlenebilir
+            hide_index=True,
+            use_container_width=True,
+            num_rows="dynamic"
+        )
         
-    elif raw_df is not None:
-        st.info("ℹ️ Yüklenen ham veri tablosu:")
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
+        # Güncellenen veriyi oturumda sakla
+        st.session_state.hesap_df = data_editor_result
+
+        # Renklendirilmiş Özet Görünüm Tablosu
+        st.markdown("---")
+        st.subheader("🟢 İşlem Durumu Renklendirilmiş Tablo")
+        styled_df = data_editor_result.style.apply(highlight_processed, axis=0)
+        st.dataframe(styled_df, use_container_width=True)
+
     else:
-        st.info("💡 Verileri görüntülemek için sol taraftan dosya yükleyin.")
+        st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
 
 # ==========================================
 # TAB 4: GENEL RAPORLAMA VE ANALİZ
