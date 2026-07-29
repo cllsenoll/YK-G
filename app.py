@@ -41,25 +41,26 @@ custom_css = """
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* MENÜ BUTONLARININ GENEL VE EŞİT ÖLÇÜ AYARLARI */
-    div[data-testid="stSidebar"] div.stButton > button {
+    /* TÜM SIDEBAR BUTONLARININ ÖLÇÜLERİNİ BİREBİR EŞİTLEME */
+    [data-testid="stSidebar"] button {
         width: 100% !important;
-        height: 52px !important; /* Eşit Yükseklik */
-        min-height: 52px !important;
+        height: 56px !important;       /* Birebir aynı yükseklik */
+        min-height: 56px !important;
+        max-height: 56px !important;
         border-radius: 12px !important;
-        padding: 10px 16px !important;
+        padding: 0px 16px !important;
         font-weight: 700 !important;
         font-size: 15px !important;
-        text-align: left !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 12px !important;
         transition: all 0.2s ease-in-out !important;
         display: flex !important;
         align-items: center !important;
         justify-content: flex-start !important;
+        box-sizing: border-box !important;
     }
 
     /* 1. ANA PANEL - MAVİ */
-    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) button {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) button {
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -67,7 +68,7 @@ custom_css = """
     }
 
     /* 2. KURYE PERFORMANS - TURUNCU */
-    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) button {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) button {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -75,27 +76,28 @@ custom_css = """
     }
 
     /* 3. SEKRETER HESAP - BEYAZ */
-    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button {
         background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
-        color: #070E1E !important; /* Beyaz buton üzerine koyu renk yazı */
         border: 1px solid #FFFFFF !important;
         box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2) !important;
     }
     
-    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button p {
-        color: #070E1E !important; /* Text iç metin rengini zorla koyu yap */
+    /* Beyaz buton üzerindeki yazının rengini siyah/lacivert yapma */
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button * {
+        color: #070E1E !important;
+        font-weight: 800 !important;
     }
 
     /* 4. F4 ÖDEME LİSTESİ - MAVİ */
-    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) button {
+    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) button {
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         box-shadow: 0 4px 12px rgba(10, 88, 202, 0.35) !important;
     }
 
-    /* BUTON HOVER EFFECT (Üzerine Gelince Hafif Yukarı Kayma) */
-    div[data-testid="stSidebar"] div.stButton > button:hover {
+    /* HOVER EFEKTİ */
+    [data-testid="stSidebar"] button:hover {
         transform: translateY(-2px) !important;
         filter: brightness(1.1) !important;
     }
@@ -207,7 +209,7 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-top: 50px; /* Profil kısmını daha aşağı kaydırır */
+        margin-top: 50px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
@@ -245,7 +247,7 @@ with st.sidebar:
     st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER (Eşit Ölçüde, Mavi - Turuncu - Beyaz - Mavi)
+    # 2. SEKMELER (Sırasıyla Mavi, Turuncu, Beyaz, Mavi - Tam Eşit Boyut)
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
