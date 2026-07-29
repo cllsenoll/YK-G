@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-# 1. Sayfa Ayarları (Sol Menü Açılabilir Halde)
+# 1. Sayfa Ayarları
 st.set_page_config(
     page_title="Yurtiçi Kargo Görükle Acente",
     page_icon="📦",
@@ -10,18 +10,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. OTURUM DURUMU (Session State) - Seçili Sekmeyi Tutma
+# 2. OTURUM DURUMU (Session State)
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Ana Panel"
 
 # --- KULLANICI PROFİL BİLGİLERİ ---
 KULLANICI_ISIM = "Celal Şenol"
 KULLANICI_GOREV = "Şube Şefi"
-# Fotoğrafınızı kod ile aynı klasöre 'celal_senol.jpg' ismiyle kaydetmeniz yeterlidir:
 FOTO_URL = "celal_senol.jpg" 
 
 
-# --- BİREBİR TEMA VE ÖZEL CSS STİLLERİ ---
+# --- CSS ÖZELLEŞTİRMELERİ ---
 custom_css = """
 <style>
     /* Ana Arka Plan */
@@ -30,45 +29,75 @@ custom_css = """
         color: #FFFFFF;
     }
     
-    /* Üst Başlıklar ve Genel Yazılar */
+    /* Genel Yazı Renkleri */
     h1, h2, h3, h4, h5, h6, p, span, label {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* Sol Yan Menü (Sidebar) Stil Özelleştirme */
+    /* Sol Yan Menü (Sidebar) */
     [data-testid="stSidebar"] {
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
-
-    /* MENÜ BUTONLARI - SIRASIYLA MAVİ VE TURUNCU STİLLER */
-    div.stButton > button.nav-btn-blue {
-        background: linear-gradient(135deg, #0A43A6 0%, #032057 100%) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
-        font-weight: 600 !important;
-        font-size: 15px !important;
-        width: 100% !important;
-        text-align: left !important;
-        margin-bottom: 10px !important;
-        box-shadow: 0 4px 12px rgba(10, 67, 166, 0.3) !important;
+    
+    [data-testid="stSidebarUserContent"] {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
     }
 
-    div.stButton > button.nav-btn-orange {
-        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
-        font-weight: 600 !important;
-        font-size: 15px !important;
+    /* MENÜ BUTONLARININ EŞİT BOYUT VE RENK DÜZENLEMESİ */
+    div.stButton > button {
         width: 100% !important;
+        height: 52px !important; /* Eşit Yükseklik */
+        border-radius: 12px !important;
+        padding: 10px 16px !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
         text-align: left !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 8px !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    /* 1. ANA PANEL - LACİVERT (Koyu Mavi) */
+    div.stButton > button[key="btn_ana"] {
+        background: linear-gradient(135deg, #0A2540 0%, #031429 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 4px 10px rgba(10, 37, 64, 0.3) !important;
+    }
+
+    /* 2. KURYE PERFORMANS - TURUNCU */
+    div.stButton > button[key="btn_kurye"] {
+        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3) !important;
+    }
+
+    /* 3. SEKRETER HESAP - MAVİ */
+    div.stButton > button[key="btn_sekreter"] {
+        background: linear-gradient(135deg, #0A58CA 0%, #03346E 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.3) !important;
+    }
+
+    /* 4. F4 LİSTESİ - BEYAZ */
+    div.stButton > button[key="btn_f4"] {
+        background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
+        color: #070E1E !important; /* Beyaz kart üzeri koyu yazı */
+        border: 1px solid #FFFFFF !important;
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* HOVER EFFECT (Üzerine Gelince Hafif Büyüme) */
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        opacity: 0.95;
     }
 
     /* KPI KARTLARI STİLLERİ */
@@ -178,13 +207,13 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-top: 30px;
+        margin-top: 60px; /* Profil kısmını daha da aşağıya taşır */
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
     .user-profile-img {
-        width: 50px;
-        height: 50px;
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
         object-fit: cover;
         border: 2px solid #F57C00;
@@ -201,7 +230,7 @@ custom_css = """
         font-size: 12px;
         color: #F57C00 !important;
         font-weight: 600;
-        margin-top: 2px;
+        margin-top: 3px;
     }
 </style>
 """
@@ -212,11 +241,11 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # SOL TARAF AÇILIR MENÜ (SIDEBAR)
 # ==========================================
 with st.sidebar:
-    # 1. MENÜ BAŞLIĞI
-    st.markdown("### 🚚 Yurtiçi Kargo<br>Görükle Acente", unsafe_allow_html=True)
+    # 1. MENÜ BAŞLIĞI (Sadece Yazı - Kamyon Görseli Kaldırıldı)
+    st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER
+    # 2. SEKMELER (Sırasıyla Koyu Mavi, Turuncu, Mavi ve Beyaz)
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
@@ -233,25 +262,16 @@ with st.sidebar:
     if btn_f4:
         st.session_state.active_tab = "F4 Listesi"
 
-    # 3. PROFİL KARTI (CELAL ŞENOL - ŞUBE ŞEFİ)
-    # Eğer lokal dosya yoksa varsayılan resim görünür
-    try:
-        st.markdown(f"""
-            <div class="user-profile-card">
-                <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol">
-                <div>
-                    <div class="user-info-name">{KULLANICI_ISIM}</div>
-                    <div class="user-info-role">{KULLANICI_GOREV}</div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    except:
-        st.markdown(f"""
-            <div class="user-profile-card">
-                <div class="user-info-name">👤 {KULLANICI_ISIM}</div>
+    # 3. PROFİL KARTI (EN ALT KISIMDA)
+    st.markdown(f"""
+        <div class="user-profile-card">
+            <img src="app/static/{FOTO_URL}" class="user-profile-img" alt="Celal Şenol" onerror="this.src='https://ui-avatars.com/api/?name=Celal+Senol&background=F57C00&color=fff'">
+            <div>
+                <div class="user-info-name">{KULLANICI_ISIM}</div>
                 <div class="user-info-role">{KULLANICI_GOREV}</div>
             </div>
-        """, unsafe_allow_html=True)
+        </div>
+    """, unsafe_allow_html=True)
 
 
 # ==========================================
