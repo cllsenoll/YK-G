@@ -20,7 +20,7 @@ KULLANICI_GOREV = "Şube Şefi"
 FOTO_URL = "celal_senol.jpg" 
 
 
-# --- CSS ÖZELLEŞTİRMELERİ ---
+# --- CSS ÖZELLEŞTİRMELERİ (Streamlit Buton Stillerini Ezme) ---
 custom_css = """
 <style>
     /* Ana Arka Plan */
@@ -41,65 +41,72 @@ custom_css = """
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* TÜM SIDEBAR BUTONLARININ ÖLÇÜLERİNİ BİREBİR EŞİTLEME */
-    [data-testid="stSidebar"] button {
+    /* SOL MENÜDEKİ TÜM BUTONLAR İÇİN GENEL EŞİT ÖLÇÜ TEMELİ */
+    [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
-        height: 56px !important;       /* Birebir aynı yükseklik */
-        min-height: 56px !important;
-        max-height: 56px !important;
+        height: 54px !important;
+        min-height: 54px !important;
+        max-height: 54px !important;
         border-radius: 12px !important;
-        padding: 0px 16px !important;
+        padding: 0 14px !important;
         font-weight: 700 !important;
-        font-size: 15px !important;
-        margin-bottom: 12px !important;
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
         transition: all 0.2s ease-in-out !important;
         display: flex !important;
         align-items: center !important;
         justify-content: flex-start !important;
-        box-sizing: border-box !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
-    /* 1. ANA PANEL - MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) button {
+    /* 1. BUTON: ANA PANEL -> MAVİ */
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(1) div.stButton > button:focus {
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.35) !important;
+        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
     }
 
-    /* 2. KURYE PERFORMANS - TURUNCU */
-    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) button {
+    /* 2. BUTON: KURYE PERFORMANS -> TURUNCU */
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(2) div.stButton > button:focus {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.35) !important;
+        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.4) !important;
     }
 
-    /* 3. SEKRETER HESAP - BEYAZ */
-    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button {
+    /* 3. BUTON: SEKRETER HESAP -> BEYAZ */
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button:focus {
         background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
         border: 1px solid #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
     }
     
-    /* Beyaz buton üzerindeki yazının rengini siyah/lacivert yapma */
-    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button * {
+    /* Beyaz buton üzerindeki metinleri koyu lacivert yap */
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button p,
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(3) div.stButton > button span {
         color: #070E1E !important;
         font-weight: 800 !important;
     }
 
-    /* 4. F4 ÖDEME LİSTESİ - MAVİ */
-    [data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) button {
+    /* 4. BUTON: F4 ÖDEME LİSTESİ -> MAVİ */
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button,
+    [data-testid="stSidebar"] div.stElementContainer:nth-of-type(4) div.stButton > button:focus {
         background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.35) !important;
+        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.4) !important;
     }
 
-    /* HOVER EFEKTİ */
-    [data-testid="stSidebar"] button:hover {
+    /* HOVER DUMUMU */
+    [data-testid="stSidebar"] div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        filter: brightness(1.1) !important;
+        filter: brightness(1.15) !important;
     }
 
     /* KPI KARTLARI STİLLERİ (İÇ EKRANLAR) */
@@ -209,13 +216,13 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-top: 50px;
+        margin-top: 40px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
     .user-profile-img {
-        width: 52px;
-        height: 52px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         object-fit: cover;
         border: 2px solid #F57C00;
@@ -247,7 +254,7 @@ with st.sidebar:
     st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER (Sırasıyla Mavi, Turuncu, Beyaz, Mavi - Tam Eşit Boyut)
+    # 2. SEKMELER (Sırasıyla: 1-Mavi, 2-Turuncu, 3-Beyaz, 4-Mavi)
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
