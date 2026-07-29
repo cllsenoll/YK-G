@@ -5,3 +5,7 @@ openpyxl
 xlrd
 pyxlsb
 chardet
+streamlit
+pandas
+openpyxl
+xlrd
