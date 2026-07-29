@@ -219,13 +219,13 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi.")
 
 # ==========================================
-# 6. AT ZİMMET İZLEME VERİ İŞLEME MOTORU
+# 6. AT ZİMMET İZLEME VERİ İŞLEME MOTORU (GÜNCELLENDİ)
 # ==========================================
 def process_excel_data(df):
     header_idx = 0
     for idx, row in df.iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
-        if "KURYE" in row_str or "ZİMMET" in row_str or "TESLİM" in row_str:
+        if "KURYE" in row_str or "ZIMMET" in row_str or "TESLIM" in row_str:
             header_idx = idx
             break
             
@@ -240,22 +240,23 @@ def process_excel_data(df):
     sms_col, imza_col, ks_col = None, None, None
 
     for col in cols:
-        c_upper = str(col).upper()
-        if "KURYE" in c_upper or "PERSONEL" in c_upper:
+        c_clean = clean_string(str(col))
+        if "KURYE" in c_clean or "PERSONEL" in c_clean:
             p_kurye_col = col
-        elif "ZİMMET" in c_upper:
+        elif "ZIMMET" in c_clean:
             p_zimmet_col = col
-        elif "TESLİM" in c_upper and "DEVİR" not in c_upper:
+        elif "TESLIM" in c_clean and "DEVIR" not in c_clean:
             p_teslim_col = col
-        elif "DEVİR" in c_upper:
+        elif "DEVIR" in c_clean:
             p_devir_col = col
-        elif "SMS" in c_upper:
+        elif "SMS" in c_clean:
             sms_col = col
-        elif "İMZA" in c_upper or "IMZA" in c_upper:
+        elif "IMZA" in c_clean:
             imza_col = col
-        elif "KS" in c_upper or "KONTROL" in c_upper:
+        elif "KS" in c_clean or "KONTROL" in c_clean:
             ks_col = col
 
+    # Fallback pozisyon indeksleri (standart KPOS yapıları için)
     if not p_kurye_col and len(cols) > 0: p_kurye_col = cols[0]
     if not p_zimmet_col and len(cols) > 1: p_zimmet_col = cols[1]
     if not p_teslim_col and len(cols) > 2: p_teslim_col = cols[2]
@@ -305,7 +306,7 @@ def process_personnel_account_data(df):
     header_idx = 0
     for idx, row in df.iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
-        if "PERSONEL" in row_str or "NAKİT" in row_str or "FT" in row_str or "ÖDEME" in row_str:
+        if "PERSONEL" in row_str or "NAKIT" in row_str or "FT" in row_str or "ODEME" in row_str:
             header_idx = idx
             break
             
@@ -315,18 +316,18 @@ def process_personnel_account_data(df):
     else:
         df.columns = df.columns.astype(str).str.strip()
 
-    df = df.drop(columns=[c for c in df.columns if "AÇıklama" in str(c).upper() or "ACIKLAMA" in str(c).upper()], errors='ignore')
+    df = df.drop(columns=[c for c in df.columns if "ACIKLAMA" in clean_string(str(c))], errors='ignore')
 
     p_col, ft_col, odeme_col, banka_col = None, None, None, None
     for col in df.columns:
-        c_upper = str(col).upper()
-        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
+        c_clean = clean_string(str(col))
+        if ("PERSONEL" in c_clean or "AD" in c_clean or "KURYE" in c_clean) and not p_col:
             p_col = col
-        elif ("FT" in c_upper or "FATURA" in c_upper) and not ft_col:
+        elif ("FT" in c_clean or "FATURA" in c_clean) and not ft_col:
             ft_col = col
-        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
+        elif ("ODEME" in c_clean) and not odeme_col:
             odeme_col = col
-        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
+        elif ("BANKA" in c_clean or "ATM" in c_clean or "POS" in c_clean) and not banka_col:
             banka_col = col
 
     cols_list = list(df.columns)
@@ -448,14 +449,16 @@ if uploaded_files:
     for file in uploaded_files:
         try:
             temp_raw = smart_read_file(file)
-            col_names_str = " ".join([str(c).upper() for c in temp_raw.columns]) + " " + " ".join([str(val).upper() for val in temp_raw.iloc[0:min(3, len(temp_raw))].values.flatten()])
+            full_text = " ".join([clean_string(str(c)) for c in temp_raw.columns]) + " " + " ".join([clean_string(str(val)) for val in temp_raw.iloc[0:min(5, len(temp_raw))].values.flatten()])
             
-            if "ZİMMET" in col_names_str or "TESLİM" in col_names_str or "DEVİR" in col_names_str:
+            # AT ZİMMET İZLEME KONTROLÜ
+            if "ZIMMET" in full_text or "TESLIM" in full_text or "DEVIR" in full_text:
                 res = process_excel_data(temp_raw)
                 if res is not None and not res.empty:
                     st.session_state.perf_df = res
             
-            if "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
+            # PERSONEL HESAP KONTROLÜ
+            if "NAKIT" in full_text or "BANKA" in full_text or "ODEME" in full_text or "FT" in full_text:
                 res_acc = process_personnel_account_data(temp_raw)
                 if res_acc is not None and not res_acc.empty:
                     st.session_state.account_df = res_acc
