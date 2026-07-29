@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import io
 import plotly.express as px
-import plotly.graph_objects as go
 import os
 import base64
 import re
@@ -121,12 +120,11 @@ def clean_string(text):
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
     for search, replace in replacements.items():
         text = text.replace(search, replace)
-    # Sadece harf ve rakamları bırak, boşluk/özel karakterleri temizle
     text = re.sub(r'[^A-Z0-9]', '', text)
     return text
 
 # ==========================================
-# OTOMATİK KURYE FOTOĞRAFI ALMA (GELİŞMİŞ EŞLEŞTİRME)
+# OTOMATİK KURYE FOTOĞRAFI ALMA
 # ==========================================
 def get_courier_photo(courier_name):
     clean_courier = clean_string(courier_name)
@@ -134,13 +132,11 @@ def get_courier_photo(courier_name):
     search_dirs = []
     if os.path.exists("kuryeler"):
         search_dirs.append("kuryeler")
-    search_dirs.append(".") # Ana Depo Dizinı
+    search_dirs.append(".")
 
     for target_dir in search_dirs:
         try:
             files = os.listdir(target_dir)
-            
-            # 1. Aşama: Tam Eşleşme Kontrolü
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -156,7 +152,6 @@ def get_courier_photo(courier_name):
                             except Exception:
                                 pass
 
-            # 2. Aşama: Esnek/Kısmi Eşleşme Kontrolü (İçerme)
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -171,11 +166,9 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
-
         except Exception:
             continue
                         
-    # Fotoğraf hiçbir şekilde bulunamazsa varsayılan avatar
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
@@ -323,10 +316,6 @@ with st.sidebar:
         st.session_state.active_tab = "Ana Panel"
     if st.button("🏃‍♂️ Kurye Performans"):
         st.session_state.active_tab = "Kurye Performans"
-    if st.button("📋 Personel Teslimat Kanalları"):
-        st.session_state.active_tab = "Personel Teslimat Kanalları"
-    if st.button("📈 Genel Grafikler & Rapor"):
-        st.session_state.active_tab = "Genel Raporlama"
 
 # ==========================================
 # VERİ YÜKLEME VE İŞLEME AŞAMASI
@@ -465,43 +454,3 @@ elif st.session_state.active_tab == "Kurye Performans":
 
     else:
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
-
-# ==========================================
-# TAB 3: PERSONEL TESLİMAT KANALLARI
-# ==========================================
-elif st.session_state.active_tab == "Personel Teslimat Kanalları":
-    st.title("📋 Personel Teslimat Kanalları")
-    
-    if perf_df is not None and not perf_df.empty:
-        st.subheader("📌 Personel Bazlı Teslimat Kanal Sayıları")
-        channel_table = perf_df[["Personel", "Teslim Edilen", "SMS", "İmza", "KS-PE"]]
-        st.dataframe(channel_table, use_container_width=True)
-        
-    elif raw_df is not None:
-        st.info("ℹ️ Yüklenen ham veri tablosu:")
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
-    else:
-        st.info("💡 Verileri görüntülemek için sol taraftan dosya yükleyin.")
-
-# ==========================================
-# TAB 4: GENEL RAPORLAMA VE ANALİZ
-# ==========================================
-elif st.session_state.active_tab == "Genel Raporlama":
-    st.title("📈 Genel Raporlama ve İstatistikler")
-    
-    if perf_df is not None and not perf_df.empty:
-        st.subheader("📊 Kuryeler Arası Zimmet vs Teslimat Karşılaştırması")
-        fig_comp = go.Figure(data=[
-            go.Bar(name='Teslim Edilen', x=perf_df['Personel'], y=perf_df['Teslim Edilen'], marker_color='#2E7D32'),
-            go.Bar(name='Teslim Edilemeyen', x=perf_df['Personel'], y=perf_df['Teslim Edilemeyen'], marker_color='#D32F2F')
-        ])
-        fig_comp.update_layout(barmode='stack', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
-        st.plotly_chart(fig_comp, use_container_width=True)
-    elif raw_df is not None:
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
-    else:
-        st.info("💡 Grafik analizi için dosya yüklemesi yapın.")
