@@ -1,15 +1,20 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 
-# Sayfa Ayarları
+# 1. Sayfa Ayarları (Sol Menü Açılabilir Halde)
 st.set_page_config(
-    page_title="Ana Panel - Kargo Operasyon",
+    page_title="Kargo Operasyon - Yönetim Paneli",
     page_icon="📱",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# --- BİREBİR TEMA VE KOLAJ CSS STİLLERİ ---
+# 2. OTURUM DURUMU (Session State) - Seçili Sekmeyi Tutma
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = "Ana Panel"
+
+# --- BİREBİR TEMA VE ÖZEL MENÜ CSS STİLLERİ ---
 custom_css = """
 <style>
     /* Ana Arka Plan */
@@ -18,13 +23,65 @@ custom_css = """
         color: #FFFFFF;
     }
     
-    /* Üst Başlıklar ve Yazılar */
+    /* Üst Başlıklar ve Genel Yazılar */
     h1, h2, h3, h4, h5, h6, p, span, label {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* 1. TURUNCU KART (En Üst - AT Zimmet) */
+    /* Sol Yan Menü (Sidebar) Stil Özelleştirme */
+    [data-testid="stSidebar"] {
+        background-color: #0B172E !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    [data-testid="stSidebar"] h2 {
+        font-size: 20px !important;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    /* MENÜ BUTONLARI - SIRASIYLA MAVİ VE TURUNCU STİLLER */
+    
+    /* Mavi Menü Butonu */
+    div.stButton > button.nav-btn-blue {
+        background: linear-gradient(135deg, #0A43A6 0%, #032057 100%) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        width: 100% !important;
+        text-align: left !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 4px 12px rgba(10, 67, 166, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    /* Turuncu Menü Butonu */
+    div.stButton > button.nav-btn-orange {
+        background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        width: 100% !important;
+        text-align: left !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    /* Aktif/Seçili Buton Vurgusu */
+    div.stButton > button.nav-btn-active {
+        border: 2px solid #FFFFFF !important;
+        transform: scale(1.02);
+    }
+
+    /* KPI KARTLARI STİLLERİ */
     .kpi-card-orange {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%);
         border-radius: 18px;
@@ -35,7 +92,6 @@ custom_css = """
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* 2. MAVİ KARTLAR (Orta Satır Yan Yana) */
     .blue-cards-row {
         display: flex;
         gap: 12px;
@@ -51,10 +107,9 @@ custom_css = """
         color: white;
         box-shadow: 0 4px 15px rgba(10, 67, 166, 0.25);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        min-width: 0; /* İçeriğin esnemesini ve kırılmasını engeller */
+        min-width: 0;
     }
 
-    /* 3. BEYAZ KART (En Alt - Günün Personeli) */
     .kpi-card-white {
         background: linear-gradient(135deg, #FFFFFF 0%, #E0E6ED 100%);
         border-radius: 18px;
@@ -65,7 +120,6 @@ custom_css = """
         border: 1px solid #FFFFFF;
     }
 
-    /* Kart Üst Başlık Düzeni */
     .kpi-header {
         display: flex;
         justify-content: space-between;
@@ -80,9 +134,6 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 6px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .kpi-title-light {
@@ -99,7 +150,6 @@ custom_css = """
         border-radius: 50%;
         width: 28px;
         height: 28px;
-        min-width: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -111,31 +161,28 @@ custom_css = """
         border-radius: 50%;
         width: 28px;
         height: 28px;
-        min-width: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 13px;
     }
 
-    /* Kart Değer Yazıları */
     .kpi-value-dark {
         font-size: 24px;
         font-weight: 700;
         color: #FFFFFF !important;
-        letter-spacing: 0.5px;
     }
 
     .kpi-value-light {
         font-size: 24px;
         font-weight: 800;
         color: #070E1E !important;
-        letter-spacing: 0.5px;
     }
 
-    /* Sidebar Gizleme */
-    [data-testid="stSidebar"] {
-        background-color: #091325;
+    /* Tablo Stilleri (Dark Mode) */
+    .stDataFrame {
+        border-radius: 12px;
+        overflow: hidden;
     }
 </style>
 """
@@ -143,158 +190,242 @@ st.markdown(custom_css, unsafe_allow_html=True)
 
 
 # ==========================================
-# İKON VE METRİK ŞABLON TANIMLARI (UI CONFIG)
+# SOL TARAF AÇILIR MENÜ (SIDEBAR)
 # ==========================================
-
-# 1x2x1 KOLAJ ŞABLONU
-COLLAGE_CARDS = {
-    # 1. EN ÜST SATIR (1 Tane Turuncu Kart)
-    "top_single": {
-        "title": "AT Zimmet",
-        "left_icon": "📦",
-        "right_icon": "⚙️",
-        "value": "1.248",
-        "style": "orange"
-    },
+with st.sidebar:
+    st.markdown("## 🚚 Operasyon Menüsü")
+    st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    # 2. ORTA SATIR (2 Tane Mavi Kart - YAN YANA SABİT)
-    "middle_left": {
-        "title": "Teslim Edildi",
-        "left_icon": "📝",
-        "right_icon": "🚚",
-        "value": "1.078",
-        "style": "blue"
-    },
-    "middle_right": {
-        "title": "Teslim Edilemedi",
-        "left_icon": "🔄",
-        "right_icon": "⚠️",
-        "value": "170",
-        "style": "blue"
-    },
-    
-    # 3. EN ALT SATIR (1 Tane Beyaz Kart)
-    "bottom_single": {
-        "title": "Günün Personeli",
-        "left_icon": "👑",
-        "right_icon": "⭐",
-        "value": "Ahmet Berkant Öksüz",
-        "style": "white"
-    }
-}
+    # 1. SEKME: Ana Panel (Mavi)
+    btn_ana = st.button(
+        "📊 Ana Panel", 
+        key="btn_ana", 
+        type="primary"
+    )
+    if btn_ana:
+        st.session_state.active_tab = "Ana Panel"
 
-# GRAFİK ŞABLONU
-CHART_CONFIG = {
-    "title": "Teslimat Oranı",
-    "percentage": 86.4,
-    "legend_1_label": "Teslim Edilen",
-    "legend_1_value": "1.078",
-    "legend_1_color": "#0A58CA",
-    "legend_2_label": "Teslim Edilemedi",
-    "legend_2_value": "170",
-    "legend_2_color": "#FF6B00"
-}
+    # 2. SEKME: Kurye Performans (Turuncu)
+    btn_kurye = st.button(
+        "🏃‍♂️ Kurye Performans", 
+        key="btn_kurye"
+    )
+    if btn_kurye:
+        st.session_state.active_tab = "Kurye Performans"
+
+    # 3. SEKME: Sekreter Hesap (Mavi)
+    btn_sekreter = st.button(
+        "💼 Sekreter Hesap", 
+        key="btn_sekreter"
+    )
+    if btn_sekreter:
+        st.session_state.active_tab = "Sekreter Hesap"
+
+    # 4. SEKME: F4 Listesi (Turuncu)
+    btn_f4 = st.button(
+        "📋 F4 Listesi", 
+        key="btn_f4"
+    )
+    if btn_f4:
+        st.session_state.active_tab = "F4 Listesi"
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.caption("📱 Kargo Operasyon v2.4")
 
 
 # ==========================================
-# ARAYÜZ OLUŞTURMA (LAYOUT)
+# SAYFA BAŞLIĞI VE TARİH FİLTRESİ
 # ==========================================
-
-# Üst Başlık ve Tarih Seçici
 col_title, col_date = st.columns([2, 1])
 with col_title:
-    st.subheader("☰ Ana Panel")
+    st.subheader(f"☰ {st.session_state.active_tab}")
 
 with col_date:
     st.date_input("", key="top_date_picker", label_visibility="collapsed")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ------------------------------------------
-# 1. EN ÜST SATIR (1 KART - TURUNCU: AT Zimmet)
-# ------------------------------------------
-card_top = COLLAGE_CARDS["top_single"]
-st.markdown(f"""
-    <div class="kpi-card-{card_top['style']}">
-        <div class="kpi-header">
-            <span class="kpi-title-dark">{card_top['left_icon']} {card_top['title']}</span>
-            <span class="kpi-icon-right-dark">{card_top['right_icon']}</span>
-        </div>
-        <div class="kpi-value-dark">{card_top['value']}</div>
-    </div>
-""", unsafe_allow_html=True)
 
+# ==========================================
+# EKRAN İÇERİKLERİ (SEKMELERE GÖRE DİNAMİK)
+# ==========================================
 
 # ------------------------------------------
-# 2. ORTA SATIR (2 KART YAN YANA KESİN SABİT - MAVİ)
+# EKRAN 1: ANA PANEL
 # ------------------------------------------
-card_m_left = COLLAGE_CARDS["middle_left"]
-card_m_right = COLLAGE_CARDS["middle_right"]
-
-st.markdown(f"""
-    <div class="blue-cards-row">
-        <div class="kpi-card-blue">
+if st.session_state.active_tab == "Ana Panel":
+    
+    # KPI 1: AT Zimmet (Turuncu Kart)
+    st.markdown("""
+        <div class="kpi-card-orange">
             <div class="kpi-header">
-                <span class="kpi-title-dark">{card_m_left['left_icon']} {card_m_left['title']}</span>
-                <span class="kpi-icon-right-dark">{card_m_left['right_icon']}</span>
+                <span class="kpi-title-dark">📦 AT Zimmet</span>
+                <span class="kpi-icon-right-dark">⚙️</span>
             </div>
-            <div class="kpi-value-dark">{card_m_left['value']}</div>
+            <div class="kpi-value-dark">1.248</div>
         </div>
-        <div class="kpi-card-blue">
+    """, unsafe_allow_html=True)
+
+    # KPI 2 & 3: Teslim Edildi / Edilemedi (Yan Yana Mavi Kartlar)
+    st.markdown("""
+        <div class="blue-cards-row">
+            <div class="kpi-card-blue">
+                <div class="kpi-header">
+                    <span class="kpi-title-dark">📝 Teslim Edildi</span>
+                    <span class="kpi-icon-right-dark">🚚</span>
+                </div>
+                <div class="kpi-value-dark">1.078</div>
+            </div>
+            <div class="kpi-card-blue">
+                <div class="kpi-header">
+                    <span class="kpi-title-dark">🔄 Teslim Edilemedi</span>
+                    <span class="kpi-icon-right-dark">⚠️</span>
+                </div>
+                <div class="kpi-value-dark">170</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # KPI 4: Günün Personeli (Beyaz Kart)
+    st.markdown("""
+        <div class="kpi-card-white">
             <div class="kpi-header">
-                <span class="kpi-title-dark">{card_m_right['left_icon']} {card_m_right['title']}</span>
-                <span class="kpi-icon-right-dark">{card_m_right['right_icon']}</span>
+                <span class="kpi-title-light">👑 Günün Personeli</span>
+                <span class="kpi-icon-right-light">⭐</span>
             </div>
-            <div class="kpi-value-dark">{card_m_right['value']}</div>
+            <div class="kpi-value-light">Ahmet Berkant Öksüz</div>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+    # Grafik
+    st.markdown("#### Teslimat Oranı")
+    fig_donut = go.Figure(data=[go.Pie(
+        labels=["Teslim Edilen", "Teslim Edilemedi"],
+        values=[1078, 170],
+        hole=0.70,
+        marker_colors=["#0A58CA", "#FF6B00"],
+        textinfo="none"
+    )])
+
+    fig_donut.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color="white"),
+        showlegend=True,
+        height=240,
+        margin=dict(l=10, r=10, t=10, b=10),
+        annotations=[dict(
+            text="<b>%86.4</b>",
+            x=0.5, y=0.5,
+            font_size=28,
+            font_color="white",
+            showarrow=False
+        )]
+    )
+    st.plotly_chart(fig_donut, use_container_width=True)
 
 
 # ------------------------------------------
-# 3. EN ALT SATIR (1 KART - BEYAZ: Günün Personeli)
+# EKRAN 2: KURYE PERFORMANS
 # ------------------------------------------
-card_bot = COLLAGE_CARDS["bottom_single"]
-st.markdown(f"""
-    <div class="kpi-card-{card_bot['style']}">
-        <div class="kpi-header">
-            <span class="kpi-title-light">{card_bot['left_icon']} {card_bot['title']}</span>
-            <span class="kpi-icon-right-light">{card_bot['right_icon']}</span>
+elif st.session_state.active_tab == "Kurye Performans":
+    
+    # Üst Özet Kartları
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+            <div class="kpi-card-blue">
+                <div class="kpi-title-dark">🏃 Sahadaki Kurye</div>
+                <div class="kpi-value-dark">14 Personel</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+            <div class="kpi-card-orange">
+                <div class="kpi-title-dark">⚡ En Hızlı Kurye</div>
+                <div class="kpi-value-dark">Ahmet B. (142 Dğıt.)</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+            <div class="kpi-card-blue">
+                <div class="kpi-title-dark">🎯 Ort. Başarı</div>
+                <div class="kpi-value-dark">%91.2</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("### 🏆 Kurye Performans Tablosu")
+    
+    # Örnek Kurye Veri Tablosu
+    kurye_data = pd.DataFrame({
+        "Kurye Adı": ["Ahmet Berkant Öksüz", "Mehmet Yılmaz", "Ali Kaya", "Caner Erkin", "Burak Yılmaz"],
+        "Zimmet Sayısı": [150, 130, 125, 110, 95],
+        "Teslim Edilen": [142, 120, 110, 98, 80],
+        "Kalan / İade": [8, 10, 15, 12, 15],
+        "Başarı Oranı (%)": ["%94.6", "%92.3", "%88.0", "%89.0", "%84.2"],
+        "Durum": ["🟢 Harika", "🟢 İyi", "🟡 Orta", "🟢 İyi", "🔴 Riskli"]
+    })
+    
+    st.dataframe(kurye_data, use_container_width=True, hide_index=True)
+
+
+# ------------------------------------------
+# EKRAN 3: SEKRETER HESAP
+# ------------------------------------------
+elif st.session_state.active_tab == "Sekreter Hesap":
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+            <div class="kpi-card-orange">
+                <div class="kpi-title-dark">💵 Günlük Nakit Tahsilat</div>
+                <div class="kpi-value-dark">₺ 14.850,00</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+            <div class="kpi-card-blue">
+                <div class="kpi-title-dark">💳 POS / Kredi Kartı Tahsilat</div>
+                <div class="kpi-value-dark">₺ 32.410,50</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("### 💼 Kasa Hareketleri ve Muhasebe Özeti")
+    
+    hesap_data = pd.DataFrame({
+        "Saat": ["09:15", "10:30", "11:45", "13:20", "15:10"],
+        "İşlem Tipi": ["Nakit Tahsilat", "POS Tahsilat", "Kurye Avans", "Nakit Tahsilat", "POS Tahsilat"],
+        "Açıklama": ["Şube Alıcı Ödemeli", "Kurye Gün Sonu", "Yakıt Ödemesi", "Şube Teslimat", "Saha Tahsilatı"],
+        "Tutar": ["₺ 1.250", "₺ 8.400", "-₺ 500", "₺ 3.100", "₺ 12.150"],
+        "İşlemi Yapan": ["Seda A.", "Ahmet B.", "Mehmet Y.", "Seda A.", "Ali K."]
+    })
+    
+    st.dataframe(hesap_data, use_container_width=True, hide_index=True)
+
+
+# ------------------------------------------
+# EKRAN 4: F4 LİSTESİ
+# ------------------------------------------
+elif st.session_state.active_tab == "F4 Listesi":
+    
+    st.markdown("""
+        <div class="kpi-card-white">
+            <div class="kpi-header">
+                <span class="kpi-title-light">📋 Toplam F4 Bekleyen Kargolar</span>
+                <span class="kpi-icon-right-light">📦</span>
+            </div>
+            <div class="kpi-value-light">48 Adet Kargo</div>
         </div>
-        <div class="kpi-value-light">{card_bot['value']}</div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ------------------------------------------
-# TESLİMAT ORANI GRAFİĞİ
-# ------------------------------------------
-st.markdown(f"#### {CHART_CONFIG['title']}")
-
-fig_donut = go.Figure(data=[go.Pie(
-    labels=[CHART_CONFIG["legend_1_label"], CHART_CONFIG["legend_2_label"]],
-    values=[float(CHART_CONFIG["legend_1_value"].replace('.', '')), float(CHART_CONFIG["legend_2_value"].replace('.', ''))],
-    hole=0.70,
-    marker_colors=[CHART_CONFIG["legend_1_color"], CHART_CONFIG["legend_2_color"]],
-    textinfo="none"
-)])
-
-fig_donut.update_layout(
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0)',
-    font=dict(color="white"),
-    showlegend=True,
-    height=240,
-    margin=dict(l=10, r=10, t=10, b=10),
-    annotations=[dict(
-        text=f"<b>%{CHART_CONFIG['percentage']}</b>",
-        x=0.5, y=0.5,
-        font_size=28,
-        font_color="white",
-        showarrow=False
-    )]
-)
-
-st.plotly_chart(fig_donut, use_container_width=True)
+    st.markdown("### 🔍 F4 Zimmet İade ve Problem Listesi")
+    
+    f4_data = pd.DataFrame({
+        "Takip No": ["TR8912341", "TR8912342", "TR8912343", "TR8912344", "TR8912345"],
+        "Alıcı Adı": ["Tekno A.Ş.", "Mustafa Demir", "Aysun Çelik", "Kaya Lojistik", "Elif Şahin"],
+        "Sebep / Problem": ["Adreste Yok / Haber Kağıdı", "Hatalı Adres", "Müşteri Kabul Etmiyor", "Randevulu Teslimat", "Telefon Ulaşılamıyor"],
+        "Sorumlu Kurye": ["Mehmet Y.", "Ali K.", "Caner E.", "Ahmet B.", "Burak Y."],
+        "Aksiyon": ["Yarın Tekrar Çıkacak", "Adres Teyidi Bekliyor", "İade Oluşturuldu", "Beklemede", "SMS Gönderildi"]
+    })
+    
+    st.dataframe(f4_data, use_container_width=True, hide_index=True)
