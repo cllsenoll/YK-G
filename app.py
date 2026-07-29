@@ -320,6 +320,9 @@ def process_personnel_account_data(df):
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Top"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
+    # Satır numaralandırmasını 1'den başlat
+    result_df.index = range(1, len(result_df) + 1)
+
     return result_df
 
 # ==========================================
@@ -494,54 +497,49 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: GÜNLÜK HESAP (FORMÜLLÜ VE MANUEL DÜZELTME)
+# TAB 3: GÜNLÜK HESAP (TEK TABLO - DİNAMİK MANUEL DÜZELTME & RENKLENDİRME)
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
-    st.caption("✍️ Tablodaki sayısal değerleri değiştirdiğinizde **Hesap (Nakit Ft. + Nakit Ödeme - Banka/ATM)** otomatik güncellenir.")
+    st.caption("✍️ Sayısal değerleri değiştirdiğinizde **Hesap (Nakit Ft. + Nakit Ödeme - Banka/ATM)** canlı güncellenir. **İşlem** kutucuğunu seçtiğiniz personel yeşil vurgulu olur.")
     
     if raw_df is not None:
         if "hesap_df" not in st.session_state or st.sidebar.button("🔄 Dosyadan Yeniden Yükle"):
             st.session_state.hesap_df = process_personnel_account_data(raw_df)
             
-        edited_df = st.session_state.hesap_df.copy()
+        current_df = st.session_state.hesap_df.copy()
 
-        # Interaktif Düzenlenebilir Tablo
-        data_editor_result = st.data_editor(
-            edited_df,
+        # Tablo Renklendirme Stili: İşlem True olan satırın tamamını yeşil vurgula
+        def highlight_rows(row):
+            if row['İşlem']:
+                return ['background-color: rgba(46, 125, 50, 0.4); color: #ffffff; font-weight: bold;'] * len(row)
+            return [''] * len(row)
+
+        # Interaktif Düzenlenebilir Tek Tablo
+        edited_df = st.data_editor(
+            current_df.style.apply(highlight_rows, axis=1),
             column_config={
                 "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
                 "Nakit Ft Tutarı Top": st.column_config.NumberColumn("Nakit Ft Tutarı Top", format="%.2f ₺"),
                 "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme Tutarı Topl", format="%.2f ₺"),
                 "Banka/ATM": st.column_config.NumberColumn("Banka/ATM", format="%.2f ₺"),
-                "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True), # Otomatik hesaplanır
+                "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True),
                 "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
             },
             disabled=["Hesap"], # Hesap sütunu otomatik formülle hesaplanır
-            hide_index=True,
+            hide_index=False,
             use_container_width=True,
             num_rows="dynamic"
         )
         
         # Değerlerde manuel değişiklik yapıldıysa "Hesap" sütununu anlık dinamik güncelle
-        data_editor_result["Hesap"] = (
-            pd.to_numeric(data_editor_result["Nakit Ft Tutarı Top"], errors='coerce').fillna(0) + 
-            pd.to_numeric(data_editor_result["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0) - 
-            pd.to_numeric(data_editor_result["Banka/ATM"], errors='coerce').fillna(0)
+        edited_df["Hesap"] = (
+            pd.to_numeric(edited_df["Nakit Ft Tutarı Top"], errors='coerce').fillna(0) + 
+            pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0) - 
+            pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0)
         )
 
-        st.session_state.hesap_df = data_editor_result
-
-        # Tablo Stil Fonksiyonu: İşlem true ise yeşil renk vurgusu
-        def highlight_processed(s):
-            if s.name == 'Personel Adı':
-                return ['background-color: #1b5e20; color: #ffffff; font-weight: bold;' if is_chk else '' for is_chk in data_editor_result['İşlem']]
-            return ['' for _ in s]
-
-        st.markdown("---")
-        st.subheader("🟢 İşlem Durumu ve Güncel Hesap Tablosu")
-        styled_df = data_editor_result.style.apply(highlight_processed, axis=0)
-        st.dataframe(styled_df, use_container_width=True)
+        st.session_state.hesap_df = edited_df
 
     else:
         st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
