@@ -35,72 +35,72 @@ custom_css = """
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* Sol Yan Menü (Sidebar) */
+    /* Sol Yan Menü (Sidebar) Arka Planı */
     [data-testid="stSidebar"] {
         background-color: #0B172E !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
-    
-    [data-testid="stSidebarUserContent"] {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-    }
 
-    /* MENÜ BUTONLARININ EŞİT BOYUT VE RENK DÜZENLEMESİ */
-    div.stButton > button {
+    /* MENÜ BUTONLARININ GENEL VE EŞİT ÖLÇÜ AYARLARI */
+    div[data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
         height: 52px !important; /* Eşit Yükseklik */
+        min-height: 52px !important;
         border-radius: 12px !important;
         padding: 10px 16px !important;
         font-weight: 700 !important;
         font-size: 15px !important;
         text-align: left !important;
-        margin-bottom: 8px !important;
-        transition: all 0.2s ease !important;
+        margin-bottom: 10px !important;
+        transition: all 0.2s ease-in-out !important;
         display: flex !important;
         align-items: center !important;
+        justify-content: flex-start !important;
     }
 
-    /* 1. ANA PANEL - LACİVERT (Koyu Mavi) */
-    div.stButton > button[key="btn_ana"] {
-        background: linear-gradient(135deg, #0A2540 0%, #031429 100%) !important;
+    /* 1. ANA PANEL - MAVİ */
+    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_ana"]) button {
+        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
         color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        box-shadow: 0 4px 10px rgba(10, 37, 64, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.35) !important;
     }
 
     /* 2. KURYE PERFORMANS - TURUNCU */
-    div.stButton > button[key="btn_kurye"] {
+    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_kurye"]) button {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3) !important;
+        box-shadow: 0 4px 12px rgba(245, 124, 0, 0.35) !important;
     }
 
-    /* 3. SEKRETER HESAP - MAVİ */
-    div.stButton > button[key="btn_sekreter"] {
-        background: linear-gradient(135deg, #0A58CA 0%, #03346E 100%) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.3) !important;
-    }
-
-    /* 4. F4 LİSTESİ - BEYAZ */
-    div.stButton > button[key="btn_f4"] {
+    /* 3. SEKRETER HESAP - BEYAZ */
+    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button {
         background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
-        color: #070E1E !important; /* Beyaz kart üzeri koyu yazı */
+        color: #070E1E !important; /* Beyaz buton üzerine koyu renk yazı */
         border: 1px solid #FFFFFF !important;
         box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2) !important;
     }
-
-    /* HOVER EFFECT (Üzerine Gelince Hafif Büyüme) */
-    div.stButton > button:hover {
-        transform: translateY(-2px);
-        opacity: 0.95;
+    
+    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_sekreter"]) button p {
+        color: #070E1E !important; /* Text iç metin rengini zorla koyu yap */
     }
 
-    /* KPI KARTLARI STİLLERİ */
+    /* 4. F4 ÖDEME LİSTESİ - MAVİ */
+    div[data-testid="stSidebar"] div.stElementContainer:has(button[key="btn_f4"]) button {
+        background: linear-gradient(135deg, #0A58CA 0%, #032057 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(10, 88, 202, 0.35) !important;
+    }
+
+    /* BUTON HOVER EFFECT (Üzerine Gelince Hafif Yukarı Kayma) */
+    div[data-testid="stSidebar"] div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        filter: brightness(1.1) !important;
+    }
+
+    /* KPI KARTLARI STİLLERİ (İÇ EKRANLAR) */
     .kpi-card-orange {
         background: linear-gradient(135deg, #E65100 0%, #F57C00 100%);
         border-radius: 18px;
@@ -207,7 +207,7 @@ custom_css = """
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-top: 60px; /* Profil kısmını daha da aşağıya taşır */
+        margin-top: 50px; /* Profil kısmını daha aşağı kaydırır */
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
@@ -241,11 +241,11 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # SOL TARAF AÇILIR MENÜ (SIDEBAR)
 # ==========================================
 with st.sidebar:
-    # 1. MENÜ BAŞLIĞI (Sadece Yazı - Kamyon Görseli Kaldırıldı)
+    # 1. MENÜ BAŞLIĞI
     st.markdown("<h3 style='margin-bottom:4px; padding-top:10px;'>Yurtiçi Kargo</h3><h5 style='color:#F57C00 !important; margin-top:0;'>Görükle Acente</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1); margin-top:8px; margin-bottom:18px;'>", unsafe_allow_html=True)
     
-    # 2. SEKMELER (Sırasıyla Koyu Mavi, Turuncu, Mavi ve Beyaz)
+    # 2. SEKMELER (Eşit Ölçüde, Mavi - Turuncu - Beyaz - Mavi)
     btn_ana = st.button("📊 Ana Panel", key="btn_ana")
     if btn_ana:
         st.session_state.active_tab = "Ana Panel"
@@ -258,9 +258,9 @@ with st.sidebar:
     if btn_sekreter:
         st.session_state.active_tab = "Sekreter Hesap"
 
-    btn_f4 = st.button("📋 F4 Listesi", key="btn_f4")
+    btn_f4 = st.button("💳 F4 Ödeme Listesi", key="btn_f4")
     if btn_f4:
-        st.session_state.active_tab = "F4 Listesi"
+        st.session_state.active_tab = "F4 Ödeme Listesi"
 
     # 3. PROFİL KARTI (EN ALT KISIMDA)
     st.markdown(f"""
@@ -425,24 +425,24 @@ elif st.session_state.active_tab == "Sekreter Hesap":
     st.dataframe(hesap_data, use_container_width=True, hide_index=True)
 
 
-elif st.session_state.active_tab == "F4 Listesi":
+elif st.session_state.active_tab == "F4 Ödeme Listesi":
     st.markdown("""
         <div class="kpi-card-white">
             <div class="kpi-header">
-                <span class="kpi-title-light">📋 Toplam F4 Bekleyen Kargolar</span>
-                <span class="kpi-icon-right-light">📦</span>
+                <span class="kpi-title-light">💳 Bekleyen F4 Tahsilat & Ödemeler</span>
+                <span class="kpi-icon-right-light">💰</span>
             </div>
-            <div class="kpi-value-light">48 Adet Kargo</div>
+            <div class="kpi-value-light">₺ 18.650,00 (48 Kargo)</div>
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 🔍 F4 Zimmet İade ve Problem Listesi")
+    st.markdown("### 💳 F4 Ödeme ve Tahsilat Takip Listesi")
     
     f4_data = pd.DataFrame({
         "Takip No": ["TR8912341", "TR8912342", "TR8912343", "TR8912344", "TR8912345"],
-        "Alıcı Adı": ["Tekno A.Ş.", "Mustafa Demir", "Aysun Çelik", "Kaya Lojistik", "Elif Şahin"],
-        "Sebep / Problem": ["Adreste Yok / Haber Kağıdı", "Hatalı Adres", "Müşteri Kabul Etmiyor", "Randevulu Teslimat", "Telefon Ulaşılamıyor"],
-        "Sorumlu Kurye": ["Mehmet Y.", "Ali K.", "Caner E.", "Ahmet B.", "Burak Y."],
-        "Aksiyon": ["Yarın Tekrar Çıkacak", "Adres Teyidi Bekliyor", "İade Oluşturuldu", "Beklemede", "SMS Gönderildi"]
+        "Müşteri / Alıcı": ["Tekno A.Ş.", "Mustafa Demir", "Aysun Çelik", "Kaya Lojistik", "Elif Şahin"],
+        "Ödeme Tipi": ["Gönderici Ödemeli", "Alıcı Ödemeli", "Kapıda Ödeme", "Alıcı Ödemeli", "Kapıda Ödeme"],
+        "Tutar": ["₺ 450,00", "₺ 1.200,00", "₺ 850,00", "₺ 3.400,00", "₺ 620,00"],
+        "Ödeme Durumu": ["🟡 Bekliyor", "🟢 Tahsil Edildi", "🔴 Problem/İade", "🟡 Bekliyor", "🟢 Tahsil Edildi"]
     })
     st.dataframe(f4_data, use_container_width=True, hide_index=True)
