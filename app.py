@@ -119,10 +119,10 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# İSİM METNİ OTOMATİK NORMALİZASYON FONKSİYONU
+# İSİM METNİ VE TÜRKÇE PARS FONKSİYONLARI
 # ==========================================
 def clean_string(text):
-    if not text:
+    if pd.isna(text) or not text:
         return ""
     text = str(text).upper().strip()
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
@@ -130,6 +130,25 @@ def clean_string(text):
         text = text.replace(search, replace)
     text = re.sub(r'[^A-Z0-9]', '', text)
     return text
+
+def parse_turkish_float(val):
+    """Türkçe Excel para/sayı formatlarını (1.250,50 -> 1250.50) tam çeviren fonksiyon"""
+    if pd.isna(val) or val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip()
+    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
+        return 0.0
+    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
+    if ',' in s and '.' in s:
+        s = s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        s = s.replace(',', '.')
+    try:
+        return float(s)
+    except:
+        return 0.0
 
 # ==========================================
 # OTOMATİK KURYE FOTOĞRAFI ALMA
@@ -281,19 +300,32 @@ def process_excel_data(df):
     return res_df, None
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER (DİNAMİK + AKILLI SIRALAMA)
+# PERSONEL HESAP ALIMI EKRANI PARSER (TAM HASSASİYETLİ)
 # ==========================================
 def process_personnel_account_data(df):
-    df.columns = df.columns.astype(str).str.strip()
-    
-    # "Açıklama" içeren sütunları tamamen kaldır
-    cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in c.upper() or "ACIKLAMA" in c.upper()]
+    # Eğer Excel'de ilk satırlar başlık bilgisi ise gerçek sütun satırını bul
+    header_idx = 0
+    for idx, row in df.iterrows():
+        row_str = " ".join([str(val).upper() for val in row.values])
+        if "PERSONEL" in row_str or "NAKİT" in row_str or "FT" in row_str or "ÖDEME" in row_str:
+            header_idx = idx
+            break
+            
+    if header_idx > 0:
+        df.columns = df.iloc[header_idx].astype(str).str.strip()
+        df = df.iloc[header_idx + 1:].reset_index(drop=True)
+    else:
+        df.columns = df.columns.astype(str).str.strip()
+
+    # "Açıklama" içeren sütunları temizle
+    cols_to_drop = [c for c in df.columns if "AÇIKLAMA" in str(c).upper() or "ACIKLAMA" in str(c).upper()]
     df = df.drop(columns=cols_to_drop, errors='ignore')
 
     p_col, ft_col, odeme_col, banka_col = None, None, None, None
 
+    # Sütun Yakalama Esnek Mantığı
     for col in df.columns:
-        c_upper = col.upper()
+        c_upper = str(col).upper()
         if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
             p_col = col
         elif ("FT" in c_upper or "FATURA" in c_upper) and not ft_col:
@@ -303,16 +335,35 @@ def process_personnel_account_data(df):
         elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
             banka_col = col
 
-    temp_df = pd.DataFrame()
-    temp_df["Personel Adı Raw"] = df[p_col].astype(str).str.strip() if p_col else df.iloc[:, 0].astype(str).str.strip()
-    temp_df["Clean_Name"] = temp_df["Personel Adı Raw"].apply(clean_string)
+    # Eğer isimle tam eşleşmediyse sıralı sütun ataması yap
+    cols_list = list(df.columns)
+    if not p_col and len(cols_list) > 0: p_col = cols_list[0]
+    if not ft_col and len(cols_list) > 1: ft_col = cols_list[1]
+    if not odeme_col and len(cols_list) > 2: odeme_col = cols_list[2]
+    if not banka_col and len(cols_list) > 3: banka_col = cols_list[3]
 
-    # Geçersiz/Boş satırları filtrele
-    temp_df = temp_df[~temp_df["Clean_Name"].isin(["NAN", "NONE", "TOTAL", "TOPLAM", ""])]
-    
-    temp_df["Nakit Ft Tutarı Topl"] = pd.to_numeric(df.loc[temp_df.index, ft_col] if ft_col else 0.0, errors='coerce').fillna(0.0)
-    temp_df["Nakit Ödeme Tutarı Topl"] = pd.to_numeric(df.loc[temp_df.index, odeme_col] if odeme_col else 0.0, errors='coerce').fillna(0.0)
-    temp_df["Banka/ATM"] = pd.to_numeric(df.loc[temp_df.index, banka_col] if banka_col else 0.0, errors='coerce').fillna(0.0)
+    parsed_rows = []
+    for _, row in df.iterrows():
+        raw_p_name = str(row[p_col]).strip() if p_col else ""
+        c_p_name = clean_string(raw_p_name)
+        
+        # Filtreleme: Boş ve Toplam satırlarını ele
+        if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
+            continue
+            
+        ft_val = parse_turkish_float(row[ft_col]) if ft_col else 0.0
+        odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
+        banka_val = parse_turkish_float(row[banka_col]) if banka_col else 0.0
+
+        parsed_rows.append({
+            "Raw_Name": raw_p_name,
+            "Clean_Name": c_p_name,
+            "Nakit Ft Tutarı Topl": ft_val,
+            "Nakit Ödeme Tutarı Topl": odeme_val,
+            "Banka/ATM": banka_val
+        })
+
+    temp_df = pd.DataFrame(parsed_rows)
 
     # SABİT ÖNCELİKLİ PERSONEL LİSTESİ
     priority_list = [
@@ -329,22 +380,31 @@ def process_personnel_account_data(df):
     final_rows = []
     processed_clean_names = set()
 
-    # 1. Önce sabit listedeki isimleri eşleştir ve getir
+    # 1. Sabit Liste Eşleştirme (Birebir veya Kısmi İsim Yakalama)
     for fixed_name in priority_list:
         clean_fixed = clean_string(fixed_name)
-        matched = temp_df[temp_df["Clean_Name"] == clean_fixed]
+        matched_row = None
         
-        if not matched.empty:
-            row = matched.iloc[0]
+        if not temp_df.empty:
+            # Tam eşleşme ara
+            exact_match = temp_df[temp_df["Clean_Name"] == clean_fixed]
+            if not exact_match.empty:
+                matched_row = exact_match.iloc[0]
+            else:
+                # İsim içerme eşleşmesi ara (Örn: Hatice Kübra)
+                contains_match = temp_df[temp_df["Clean_Name"].apply(lambda x: clean_fixed in x or x in clean_fixed)]
+                if not contains_match.empty:
+                    matched_row = contains_match.iloc[0]
+
+        if matched_row is not None:
             final_rows.append({
                 "Personel Adı": fixed_name,
-                "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
-                "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
-                "Banka/ATM": float(row["Banka/ATM"]),
+                "Nakit Ft Tutarı Topl": float(matched_row["Nakit Ft Tutarı Topl"]),
+                "Nakit Ödeme Tutarı Topl": float(matched_row["Nakit Ödeme Tutarı Topl"]),
+                "Banka/ATM": float(matched_row["Banka/ATM"]),
             })
-            processed_clean_names.add(clean_fixed)
+            processed_clean_names.add(matched_row["Clean_Name"])
         else:
-            # Dosyada o an verisi yoksa varsayılan 0.0 ile ekle
             final_rows.append({
                 "Personel Adı": fixed_name,
                 "Nakit Ft Tutarı Topl": 0.0,
@@ -352,21 +412,20 @@ def process_personnel_account_data(df):
                 "Banka/ATM": 0.0,
             })
 
-    # 2. Dosyada bulunan ama sabit listede olmayan Yeni Personelleri Otomatik Sona Ekle
-    for _, row in temp_df.iterrows():
-        c_name = row["Clean_Name"]
-        if c_name not in processed_clean_names:
-            final_rows.append({
-                "Personel Adı": row["Personel Adı Raw"],
-                "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
-                "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
-                "Banka/ATM": float(row["Banka/ATM"]),
-            })
-            processed_clean_names.add(c_name)
+    # 2. Excel'de Olup Sabit Listede Olmayan Yeni Personelleri Sona Ekle
+    if not temp_df.empty:
+        for _, row in temp_df.iterrows():
+            c_name = row["Clean_Name"]
+            if c_name not in processed_clean_names:
+                final_rows.append({
+                    "Personel Adı": row["Raw_Name"],
+                    "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
+                    "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
+                    "Banka/ATM": float(row["Banka/ATM"]),
+                })
+                processed_clean_names.add(c_name)
 
     result_df = pd.DataFrame(final_rows)
-    
-    # Formül: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
 
@@ -422,7 +481,7 @@ if uploaded_file is not None:
         
         if "AT ZİMMET PERSONEL ADI" in col_names_str or "TESLİM EDEN PERSONEL" in col_names_str:
             perf_df, _ = process_excel_data(raw_df)
-        elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str:
+        elif "NAKİT" in col_names_str or "BANKA" in col_names_str or "FT" in col_names_str or "ÖDEME" in col_names_str:
             account_df = process_personnel_account_data(raw_df)
         else:
             perf_df, _ = process_excel_data(raw_df)
@@ -549,7 +608,7 @@ elif st.session_state.active_tab == "Kurye Performans":
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: GÜNLÜK HESAP (ÖNCELİKLİ & DİNAMİK PERSONEL)
+# TAB 3: GÜNLÜK HESAP (TÜRKÇE PARSE DÜZELTİLMİŞ)
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
@@ -561,13 +620,11 @@ elif st.session_state.active_tab == "Günlük Hesap":
             
         current_df = st.session_state.hesap_df.copy()
 
-        # Tablo Renklendirme Stili: İşlem True olan satır yeşil renkte vurgulanır
         def highlight_rows(row):
             if row.get('İşlem', False):
                 return ['background-color: rgba(46, 125, 50, 0.4); color: #ffffff; font-weight: bold;'] * len(row)
             return [''] * len(row)
 
-        # Interaktif Düzenlenebilir Tek Tablo
         edited_output = st.data_editor(
             current_df.style.apply(highlight_rows, axis=1),
             column_config={
@@ -584,7 +641,6 @@ elif st.session_state.active_tab == "Günlük Hesap":
             num_rows="fixed"
         )
 
-        # KeyError Güvenliği ve Dinamik Hesaplama
         edited_df = pd.DataFrame(edited_output)
         
         ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0) if "Nakit Ft Tutarı Topl" in edited_df.columns else 0.0
@@ -618,7 +674,6 @@ elif st.session_state.active_tab == "Günlük Hesap":
             )
             st.session_state.kasa_miktari = kasa_val
 
-        # KASA - Toplam Hesap Hesabı
         kasa_fark = kasa_val - toplam_hesap
 
         with col3:
