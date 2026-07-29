@@ -7,6 +7,10 @@ import os
 import base64
 import re
 
+# app.py dosyasının üst kısmına ekleyin:
+account_df = None
+
+
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
     page_title="Görükle Acente - Performance Dashboard",
