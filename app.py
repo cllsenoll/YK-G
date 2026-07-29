@@ -505,48 +505,86 @@ elif st.session_state.active_tab == "Genel Raporlama":
         st.info("💡 Grafik analizi için dosya yüklemesi yapın.")
 
 # ==========================================
-# TAB 5: GÜNLÜK HESAP VE KASA
+# TAB 3: GÜNLÜK HESAP
 # ==========================================
 elif st.session_state.active_tab == "Günlük Hesap":
-    st.title("💵 Günlük Kasa ve Tahsilat Dengesi")
+    st.title("📋 Günlük Personel Hesap Takip Tablosu")
+    st.caption("✍️ Değerleri değiştirdiğinizde **Hesap (Nakit Ft. Topl + Nakit Ödeme Topl - Banka/ATM)** canlı olarak hesaplanır.")
     
-    st.markdown("Günlük şube gelir-gider kalemlerini girerek net kasa dengesini hesaplayabilirsiniz.")
-    st.markdown("---")
-    
-    col_inputs, col_summary = st.columns([2, 1])
-    
-    with col_inputs:
-        st.subheader("📝 Tahsilat ve Gider Girişi")
+    if account_df is not None:
+        if "hesap_df" not in st.session_state or st.sidebar.button("🔄 Dosyadan Yeniden Yükle"):
+            st.session_state.hesap_df = account_df.copy()
+            
+        current_df = st.session_state.hesap_df.copy()
+
+        def highlight_rows(row):
+            if row.get('İşlem', False):
+                return ['background-color: rgba(46, 125, 50, 0.4); color: #ffffff; font-weight: bold;'] * len(row)
+            return [''] * len(row)
+
+        edited_output = st.data_editor(
+            current_df.style.apply(highlight_rows, axis=1),
+            column_config={
+                "Personel Adı": st.column_config.TextColumn("Personel Adı", required=True),
+                "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit Ft Tutarı Topl", format="%.2f ₺"),
+                "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme Tutarı Topl", format="%.2f ₺"),
+                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM", format="%.2f ₺"),
+                "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True),
+                "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
+            },
+            disabled=["Hesap"],
+            hide_index=False,
+            use_container_width=True,
+            num_rows="fixed"
+        )
+
+        edited_df = pd.DataFrame(edited_output)
         
-        c1, c2 = st.columns(2)
-        with c1:
-            nakit_tahsilat = st.number_input("💵 Nakit Tahsilat (₺)", min_value=0.0, value=0.0, step=50.0)
-            kredi_karti = st.number_input("💳 Kredi Kartı Tahsilat (₺)", min_value=0.0, value=0.0, step=50.0)
-            cari_tahsilat = st.number_input("🏢 Cari / Müşteri Hesabı (₺)", min_value=0.0, value=0.0, step=50.0)
-        
-        with c2:
-            havale_eft = st.number_input("🏦 Havale / EFT (₺)", min_value=0.0, value=0.0, step=50.0)
-            sube_masraf = st.number_input("📉 Şube / Günlük Masraf (₺)", min_value=0.0, value=0.0, step=10.0)
-            masraf_aciklama = st.text_input("💬 Masraf Açıklaması", placeholder="Örn: Akaryakıt, Yemek vb.")
+        ft_vals = pd.to_numeric(edited_df["Nakit Ft Tutarı Topl"], errors='coerce').fillna(0.0) if "Nakit Ft Tutarı Topl" in edited_df.columns else 0.0
+        odeme_vals = pd.to_numeric(edited_df["Nakit Ödeme Tutarı Topl"], errors='coerce').fillna(0.0) if "Nakit Ödeme Tutarı Topl" in edited_df.columns else 0.0
+        banka_vals = pd.to_numeric(edited_df["Banka/ATM"], errors='coerce').fillna(0.0) if "Banka/ATM" in edited_df.columns else 0.0
 
-    total_gelir = nakit_tahsilat + kredi_karti + cari_tahsilat + havale_eft
-    net_kasa = nakit_tahsilat - sube_masraf
+        edited_df["Hesap"] = ft_vals + odeme_vals - banka_vals
+        st.session_state.hesap_df = edited_df
 
-    with col_summary:
-        st.subheader("📊 Kasa Özeti")
-        st.metric("💰 Toplam Tahsilat", f"{total_gelir:,.2f} ₺")
-        st.metric("💸 Toplam Masraf", f"{sube_masraf:,.2f} ₺")
-        st.metric("🏦 Net Fiziki Kasa (Nakit - Masraf)", f"{net_kasa:,.2f} ₺", delta=f"{net_kasa:,.2f} ₺")
+        # ==========================================
+        # TOPLAM HESAP, KASA VE DENGE DURUM BÖLÜMÜ
+        # ==========================================
+        st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
+        st.subheader("💵 Genel Kasa ve Hesap Dengesi")
 
-    st.markdown("---")
-    st.subheader("📑 Özet Döküm")
-    
-    summary_data = {
-        "Ödeme / İşlem Tipi": ["Nakit", "Kredi Kartı", "Cari Hesaba", "Havale / EFT", "Gider / Masraf", "TOPLAM TAHSİLAT"],
-        "Tutar (₺)": [nakit_tahsilat, kredi_karti, cari_tahsilat, havale_eft, -sube_masraf, total_gelir],
-        "Açıklama": ["Fiziki Kasa Girişi", "POS Cihazı", "Cari İşlem", "Banka Transferi", masraf_aciklama, "Genel Ciro"]
-    }
-    
-    summary_df = pd.DataFrame(summary_data)
-    summary_df.index = range(1, len(summary_df) + 1)
-    st.dataframe(summary_df, use_container_width=True)
+        toplam_hesap = float(edited_df["Hesap"].sum())
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("📊 Toplam Hesap", f"{toplam_hesap:,.2f} ₺")
+
+        with col2:
+            if "kasa_miktari" not in st.session_state:
+                st.session_state.kasa_miktari = 0.0
+            kasa_val = st.number_input(
+                "🏦 KASA (Manuel Giriniz)", 
+                value=float(st.session_state.kasa_miktari), 
+                step=100.0, 
+                format="%.2f"
+            )
+            st.session_state.kasa_miktari = kasa_val
+
+        # Güncellenen Kasa Durum Mantığı (Toplam Hesap - KASA)
+        kasa_fark = toplam_hesap - kasa_val
+
+        with col3:
+            if kasa_val > toplam_hesap:
+                durum_metni = "AÇIK"
+                st.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta=f"Durum: {durum_metni}", delta_color="inverse")
+                st.error(f"🚨 Kasa {abs(kasa_fark):,.2f} ₺ **{durum_metni}** veriyor!")
+            else:
+                durum_metni = "TAM"
+                st.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta=f"Durum: {durum_metni}", delta_color="normal")
+                st.success(f"✅ Kasa hesap dengesi **{durum_metni}**.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    else:
+        st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
