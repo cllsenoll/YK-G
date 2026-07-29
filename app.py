@@ -222,7 +222,12 @@ def process_excel_data(df):
             "KS-PE": ks_pe_cnt
         })
 
-    return pd.DataFrame(summary), None
+    res_df = pd.DataFrame(summary)
+    if not res_df.empty:
+        # Sıralamanın 1'den başlaması için index ayarlanıyor
+        res_df.index = range(1, len(res_df) + 1)
+        
+    return res_df, None
 
 # ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
@@ -252,8 +257,8 @@ with st.sidebar:
         st.session_state.active_tab = "Ana Panel"
     if st.button("🏃‍♂️ Kurye Performans"):
         st.session_state.active_tab = "Kurye Performans"
-    if st.button("👩‍💼 Operatör Performans"):
-        st.session_state.active_tab = "Operatör Performans"
+    if st.button("📋 Personel Teslimat Kanalları"):
+        st.session_state.active_tab = "Personel Teslimat Kanalları"
     if st.button("📈 Genel Grafikler & Rapor"):
         st.session_state.active_tab = "Genel Raporlama"
 
@@ -327,8 +332,11 @@ if st.session_state.active_tab == "Ana Panel":
         
     elif raw_df is not None and missing_columns is not None:
         st.success("✅ Dosya başarıyla okundu!")
-        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste (Örn: F4 Ödeme Listesi). Veriler aşağıda listelenmiştir:")
-        st.dataframe(raw_df, use_container_width=True)
+        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste. Veriler aşağıda listelenmiştir:")
+        
+        raw_display = raw_df.copy()
+        raw_display.index = range(1, len(raw_display) + 1)
+        st.dataframe(raw_display, use_container_width=True)
     else:
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** veya **F4 ÖDEME LİSTESİ** dosyanızı yükleyerek paneli kullanabilirsiniz.")
 
@@ -341,6 +349,7 @@ elif st.session_state.active_tab == "Kurye Performans":
     if perf_df is not None and not perf_df.empty:
         st.success(f"✅ AT ZİMMET İZLEME raporu başarıyla işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
         
+        # Kurye Kartları Döngüsü
         for _, row in perf_df.iterrows():
             p_name = row["Personel"]
             zimmet = row["Zimmet"]
@@ -389,22 +398,34 @@ elif st.session_state.active_tab == "Kurye Performans":
             """
             st.markdown(card_html, unsafe_allow_html=True)
             
+        # KARTLARIN EN ALTINA EKLENEN PERSONEL TESLİMAT KANALLARI TABLOSU
+        st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.1);'><br>", unsafe_allow_html=True)
+        st.subheader("📋 Personel Teslimat Kanalları Özet Tablosu")
+        
+        channel_table = perf_df[["Personel", "Teslim Edilen", "SMS", "İmza", "KS-PE"]]
+        st.dataframe(channel_table, use_container_width=True)
+
     else:
         st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
-# TAB 3: OPERATÖR PERFORMANS PANELİ
+# TAB 3: PERSONEL TESLİMAT KANALLARI
 # ==========================================
-elif st.session_state.active_tab == "Operatör Performans":
-    st.title("👩‍💼 Operatör & Acente İçi Performans")
+elif st.session_state.active_tab == "Personel Teslimat Kanalları":
+    st.title("📋 Personel Teslimat Kanalları")
     
     if perf_df is not None and not perf_df.empty:
-        st.subheader("📌 Acente İçi Teslimat İşlemleri")
-        st.dataframe(perf_df[["Personel", "Teslim Edilen", "İmza", "KS-PE"]], use_container_width=True)
+        st.subheader("📌 Personel Bazlı Teslimat Kanal Sayıları")
+        channel_table = perf_df[["Personel", "Teslim Edilen", "SMS", "İmza", "KS-PE"]]
+        st.dataframe(channel_table, use_container_width=True)
+        
     elif raw_df is not None:
-        st.dataframe(raw_df, use_container_width=True)
+        st.info("ℹ️ Yüklenen ham veri tablosu:")
+        raw_display = raw_df.copy()
+        raw_display.index = range(1, len(raw_display) + 1)
+        st.dataframe(raw_display, use_container_width=True)
     else:
-        st.info("💡 Operatör verileri için sol taraftan dosyanızı yükleyin.")
+        st.info("💡 Verileri görüntülemek için sol taraftan dosya yükleyin.")
 
 # ==========================================
 # TAB 4: GENEL RAPORLAMA VE ANALİZ
@@ -421,6 +442,8 @@ elif st.session_state.active_tab == "Genel Raporlama":
         fig_comp.update_layout(barmode='stack', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
         st.plotly_chart(fig_comp, use_container_width=True)
     elif raw_df is not None:
-        st.dataframe(raw_df, use_container_width=True)
+        raw_display = raw_df.copy()
+        raw_display.index = range(1, len(raw_display) + 1)
+        st.dataframe(raw_display, use_container_width=True)
     else:
         st.info("💡 Grafik analizi için dosya yüklemesi yapın.")
