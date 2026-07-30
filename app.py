@@ -499,19 +499,15 @@ def process_personnel_account_data(df):
 # GÜÇLENDİRİLMİŞ F4 ÖDEME LİSTESİ PARSER
 # ==========================================
 def process_f4_payment_list(df):
-    # Başlık satırını bulma (ilk 3 satır içinde anahtar kelime arama)
     header_idx = 0
     for idx, row in df.head(3).iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
-        if "FIRMA" in row_str or "UNVAN" in row_str or "MUSTERI" in row_str or "BORC" in row_str or "BAKIYE" in row_str:
-            header_idx = idx
+        if any(k in row_str for k in ["FIRMA", "UNVAN", "MUSTERI", "BORC", "BAKIYE"]):
+            header_idx = int(idx)
             break
             
-    if header_idx > 0 or header_idx == 0:
-        df.columns = df.iloc[header_idx].astype(str).str.strip()
-        df = df.iloc[header_idx + 1:].reset_index(drop=True)
-    else:
-        df.columns = df.columns.astype(str).str.strip()
+    df.columns = df.iloc[header_idx].astype(str).str.strip()
+    df = df.iloc[header_idx + 1:].reset_index(drop=True)
 
     firma_col, bakiye_col = None, None
     for col in df.columns:
@@ -524,7 +520,6 @@ def process_f4_payment_list(df):
     cols_list = list(df.columns)
     if not firma_col and len(cols_list) > 0: firma_col = cols_list[0]
     if not bakiye_col and len(cols_list) > 1: 
-        # Sayısal değer barındıran ilk sütunu bulmaya çalışalım
         for c in cols_list[1:]:
             sample_val = parse_turkish_float(df[c].iloc[0]) if len(df) > 0 else 0
             if sample_val > 0:
