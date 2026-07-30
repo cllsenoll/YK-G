@@ -306,7 +306,7 @@ def process_excel_data(df):
     req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
     missing_cols = [col for col in req_cols if col not in df.columns]
     
-    if missing_cols:
+    if len(missing_cols) > 0:
         return None, missing_cols
 
     has_aciklama = "Açıklama" in df.columns
@@ -377,7 +377,7 @@ def process_personnel_account_data(df):
     for idx, row in df.iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
         if "PERSONEL" in row_str or "NAKİT" in row_str or "FT" in row_str or "ÖDEME" in row_str:
-            header_idx = idx
+            header_idx = int(idx)
             break
             
     if header_idx > 0:
@@ -393,32 +393,32 @@ def process_personnel_account_data(df):
 
     for col in df.columns:
         c_upper = str(col).upper()
-        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
+        if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and p_col is None:
             p_col = col
-        elif ("FT" in c_upper or "FATURA" in c_upper) and not ft_col:
+        elif ("FT" in c_upper or "FATURA" in c_upper) and ft_col is None:
             ft_col = col
-        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
+        elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and odeme_col is None:
             odeme_col = col
-        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and not banka_col:
+        elif ("BANKA" in c_upper or "ATM" in c_upper or "POS" in c_upper) and banka_col is None:
             banka_col = col
 
     cols_list = list(df.columns)
-    if not p_col and len(cols_list) > 0: p_col = cols_list[0]
-    if not ft_col and len(cols_list) > 1: ft_col = cols_list[1]
-    if not odeme_col and len(cols_list) > 2: odeme_col = cols_list[2]
-    if not banka_col and len(cols_list) > 3: banka_col = cols_list[3]
+    if p_col is None and len(cols_list) > 0: p_col = cols_list[0]
+    if ft_col is None and len(cols_list) > 1: ft_col = cols_list[1]
+    if odeme_col is None and len(cols_list) > 2: odeme_col = cols_list[2]
+    if banka_col is None and len(cols_list) > 3: banka_col = cols_list[3]
 
     parsed_rows = []
     for _, row in df.iterrows():
-        raw_p_name = str(row[p_col]).strip() if p_col else ""
+        raw_p_name = str(row[p_col]).strip() if p_col is not None and p_col in row else ""
         c_p_name = clean_string(raw_p_name)
         
         if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
             continue
             
-        ft_val = parse_turkish_float(row[ft_col]) if ft_col else 0.0
-        odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
-        banka_val = parse_turkish_float(row[banka_col]) if banka_col else 0.0
+        ft_val = parse_turkish_float(row[ft_col]) if ft_col is not None and ft_col in row else 0.0
+        odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col is not None and odeme_col in row else 0.0
+        banka_val = parse_turkish_float(row[banka_col]) if banka_col is not None and banka_col in row else 0.0
 
         parsed_rows.append({
             "Raw_Name": raw_p_name,
@@ -512,9 +512,9 @@ def process_f4_payment_list(df):
     firma_col, bakiye_col = None, None
     for col in df.columns:
         c_upper = str(col).upper()
-        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "MÜŞTERİ ADI", "ADI", "ADİ"]) and not firma_col:
+        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "MÜŞTERİ ADI", "ADI", "ADİ"]) and firma_col is None:
             firma_col = col
-        elif any(k in c_upper for k in ["BORC", "BORÇ", "BAKIYE", "BAKİYE", "TUTAR"]) and not bakiye_col:
+        elif any(k in c_upper for k in ["BORC", "BORÇ", "BAKIYE", "BAKİYE", "TUTAR"]) and bakiye_col is None:
             bakiye_col = col
             
     cols_list = list(df.columns)
@@ -554,10 +554,10 @@ def process_f4_payment_list(df):
                     assigned_person = map_pers
                     break
                     
-        if assigned_person:
+        if assigned_person is not None:
             valid_records.append({
                 "Personel": assigned_person,
-                "Firma Adı": matched_real_name if matched_real_name else raw_firma,
+                "Firma Adı": matched_real_name if matched_real_name is not None else raw_firma,
                 "Fatura Borcu": bakiye_val,
                 "Açıklama": ""
             })
