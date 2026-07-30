@@ -500,7 +500,7 @@ def process_personnel_account_data(df):
 # ==========================================
 def process_f4_payment_list(df):
     header_idx = 0
-    for idx, row in df.head(5).iterrows():
+    for idx, row in df.head(10).iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
         if any(k in row_str for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "BORC", "BAKIYE", "BAKİYE"]):
             header_idx = int(idx)
@@ -512,20 +512,21 @@ def process_f4_payment_list(df):
     firma_col, bakiye_col = None, None
     for col in df.columns:
         c_upper = str(col).upper()
-        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "ADI", "ADİ"]) and not firma_col:
+        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "MÜŞTERİ ADI", "ADI", "ADİ"]) and not firma_col:
             firma_col = col
         elif any(k in c_upper for k in ["BORC", "BORÇ", "BAKIYE", "BAKİYE", "TUTAR"]) and not bakiye_col:
             bakiye_col = col
             
     cols_list = list(df.columns)
-    if not firma_col and len(cols_list) > 0: firma_col = cols_list[0]
-    if not bakiye_col and len(cols_list) > 1: 
+    if firma_col is None and len(cols_list) > 0: 
+        firma_col = cols_list[0]
+    if bakiye_col is None and len(cols_list) > 1: 
         for c in cols_list[1:]:
             sample_val = parse_turkish_float(df[c].iloc[0]) if len(df) > 0 else 0
             if sample_val > 0:
                 bakiye_col = c
                 break
-        if not bakiye_col:
+        if bakiye_col is None:
             bakiye_col = cols_list[1]
     
     valid_records = []
@@ -534,9 +535,9 @@ def process_f4_payment_list(df):
     clean_map = {clean_string(k): (k, v) for k, v in FİRMA_PERSONEL_MAP.items()}
     
     for _, row in df.iterrows():
-        raw_firma = str(row[firma_col]).strip() if firma_col else ""
+        raw_firma = str(row[firma_col]).strip() if firma_col is not None and firma_col in row else ""
         c_firma = clean_string(raw_firma)
-        bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col else 0.0
+        bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col is not None and bakiye_col in row else 0.0
         
         if bakiye_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM", "GENELTOPLAM"]:
             continue
