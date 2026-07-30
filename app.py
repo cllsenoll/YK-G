@@ -23,8 +23,8 @@ if 'account_df' not in st.session_state:
     st.session_state.account_df = None
 if 'hesap_df' not in st.session_state:
     st.session_state.hesap_df = None
-if 'kasa_miktari' not in st.session_state:
-    st.session_state.kasa_miktari = 0.0
+if 'perf_df' not in st.session_state:
+    st.session_state.perf_df = None
 if 'f4_df' not in st.session_state:
     st.session_state.f4_df = None
 if 'f4_unmatched' not in st.session_state:
@@ -176,7 +176,7 @@ def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
     req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
     if not all(col in df.columns for col in req_cols):
-        return None, req_cols
+        return None
 
     has_aciklama = "Açıklama" in df.columns
 
@@ -216,7 +216,7 @@ def process_excel_data(df):
         })
     res_df = pd.DataFrame(summary)
     if not res_df.empty: res_df.index = range(1, len(res_df) + 1)
-    return res_df, None
+    return res_df
 
 def process_personnel_account_data(df):
     header_idx = 0
@@ -271,9 +271,6 @@ def process_personnel_account_data(df):
     result_df.index = range(1, len(result_df) + 1)
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
-# ==========================================
-# F4 ÖDEME LİSTESİ PARSER (FATURA BORCU ODAKLI)
-# ==========================================
 def process_f4_payment_list(df):
     df.columns = df.columns.astype(str).str.strip()
     
@@ -282,7 +279,7 @@ def process_f4_payment_list(df):
 
     for col in df.columns:
         c_clean = clean_string(col)
-        if "MUSTERIADI" in c_clean or "MUSTERI" in c_clean or "FIRMA" in c_clean:
+        if "MUSTERI" in c_clean or "FIRMA" in c_clean:
             if firma_col is None: firma_col = col
         if "FATURABORCU" in c_clean or "FATURA" in c_clean:
             if fatura_borcu_col is None: fatura_borcu_col = col
@@ -371,7 +368,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=['csv', 'xlsx', 'xls', 'html'])
+    uploaded_files = st.file_uploader("📂 Rapor / Liste Yükle (Çoklu Seçim)", type=['csv', 'xlsx', 'xls', 'html'], accept_multiple_files=True)
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
     if st.button("📊 Ana Panel"): st.session_state.active_tab = "Ana Panel"
@@ -380,42 +377,42 @@ with st.sidebar:
     if st.button("📋 F4 ÖDEME LİSTESİ"): st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
 
 # ==========================================
-# DOSYA İŞLEME VE OTOMATİK ALGILAMA
+# ÇOKLU DOSYA İŞLEME VE OTOMATİK SINIFLANDIRMA
 # ==========================================
-perf_df = None
-if uploaded_file is not None:
-    try:
-        raw_df = smart_read_file(uploaded_file)
-        cols_str = " ".join([str(c).upper() for c in raw_df.columns])
-        
-        if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str:
-            perf_df, _ = process_excel_data(raw_df)
-        elif "NAKIT" in cols_str or "FT" in cols_str:
-            processed_acc = process_personnel_account_data(raw_df)
-            st.session_state.account_df = processed_acc
-            st.session_state.hesap_df = processed_acc.copy()
-        else:
-            valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
-            st.session_state.f4_df = valid_f4
-            st.session_state.f4_unmatched = unmatched_f4
-            st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
-    except Exception as e:
-        st.error(f"❌ Dosya Okuma Hatası: {e}")
+if uploaded_files:
+    for uploaded_file in uploaded_files:
+        try:
+            raw_df = smart_read_file(uploaded_file)
+            cols_str = " ".join([str(c).upper() for c in raw_df.columns])
+            
+            if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str:
+                st.session_state.perf_df = process_excel_data(raw_df)
+            elif "NAKIT" in cols_str or "FT" in cols_str or "FATURA BORCU" in cols_str and "MÜŞTERİ" not in cols_str:
+                processed_acc = process_personnel_account_data(raw_df)
+                st.session_state.account_df = processed_acc
+                st.session_state.hesap_df = processed_acc.copy()
+            else:
+                valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
+                if not valid_f4.empty or "FATURA BORCU" in cols_str or "MÜŞTERİ ADI" in cols_str:
+                    st.session_state.f4_df = valid_f4
+                    st.session_state.f4_unmatched = unmatched_f4
+        except Exception as e:
+            st.error(f"❌ Dosya Okuma Hatası ({uploaded_file.name}): {e}")
 
 # ==========================================
 # SEKME YÖNETİMİ
 # ==========================================
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
-    if perf_df is not None and not perf_df.empty:
-        st.dataframe(perf_df, use_container_width=True)
+    if st.session_state.perf_df is not None and not st.session_state.perf_df.empty:
+        st.dataframe(st.session_state.perf_df, use_container_width=True)
     else:
-        st.info("💡 Sol menüden dosyanızı yükleyebilirsiniz.")
+        st.info("💡 Sol menüden AT Zimmet İzleme raporunuzu yükleyebilirsiniz.")
 
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
-    if perf_df is not None and not perf_df.empty:
-        for _, row in perf_df.iterrows():
+    if st.session_state.perf_df is not None and not st.session_state.perf_df.empty:
+        for _, row in st.session_state.perf_df.iterrows():
             st.markdown(f"**{row['Personel']}** - Başarı: %{row['Başarı Oranı']}")
     else:
         st.warning("⚠️ AT ZİMMET raporu yükleyin.")
@@ -459,7 +456,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             
             edited_list = st.data_editor(combined_df, use_container_width=True)
             
-            # Toplam Borç Gösterimi
             toplam_borc = edited_list["Fatura Borcu (₺)"].sum()
             st.markdown(f"""
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 15px; text-align: center; margin-top: 15px;">
