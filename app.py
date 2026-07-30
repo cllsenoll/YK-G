@@ -99,18 +99,6 @@ custom_css = """
         color: #FFFFFF !important; border: 1px solid rgba(255, 255, 255, 0.15) !important;
         margin-bottom: 6px !important; text-align: left !important; padding-left: 15px !important;
     }
-    .person-card {
-        background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-    .profile-section { display: flex; align-items: center; gap: 12px; }
-    .avatar-circle { width: 62px; height: 62px; border-radius: 50%; border: 2px solid #F57C00; object-fit: cover; background-color: #0B172E; }
-    .person-name { font-size: 15px; font-weight: 700; color: #FFFFFF !important; }
-    .metric-title { font-size: 11px; color: rgba(255, 255, 255, 0.5) !important; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-    .metric-value { font-size: 19px; font-weight: 700; }
-    .channel-badge { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 4px 10px; font-size: 12px; display: inline-block; margin-right: 8px; margin-top: 8px; }
-    .badge-val { font-weight: 700; color: #F57C00 !important; }
-    .kasa-box { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 20px; margin-top: 20px; }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -145,25 +133,6 @@ def parse_turkish_float(val):
         return float(s)
     except:
         return 0.0
-
-def get_courier_photo(courier_name):
-    clean_courier = clean_string(courier_name)
-    search_dirs = ["kuryeler", "."]
-    for target_dir in search_dirs:
-        if os.path.exists(target_dir):
-            try:
-                for file in os.listdir(target_dir):
-                    file_path = os.path.join(target_dir, file)
-                    if os.path.isfile(file_path):
-                        ext = os.path.splitext(file)[1].lower().replace('.', '')
-                        if ext in ['png', 'jpg', 'jpeg', 'webp']:
-                            if clean_string(os.path.splitext(file)[0]) == clean_courier:
-                                with open(file_path, "rb") as image_file:
-                                    encoded_string = base64.b64encode(image_file.read()).decode()
-                                    return f"data:image/{ext};base64,{encoded_string}"
-            except Exception:
-                continue
-    return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
@@ -288,24 +257,24 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# GÜNCELLENMİŞ F4 ÖDEME LİSTESİ PARSER
+# GÜNCELLENMİŞ F4 ÖDEME LİSTESİ PARSER (FATURA BORCU ODAKLI)
 # ==========================================
 def process_f4_payment_list(df):
     df.columns = df.columns.astype(str).str.strip()
     
     firma_col = None
-    bakiye_col = None
+    fatura_borcu_col = None
 
     for col in df.columns:
         c_clean = clean_string(col)
         if "MUSTERIADI" in c_clean or "MUSTERI" in c_clean or "FIRMA" in c_clean:
             if firma_col is None: firma_col = col
-        if "BAKIYE" in c_clean or "BORC" in c_clean or "TUTAR" in c_clean:
-            if bakiye_col is None: bakiye_col = col
+        if "FATURABORCU" in c_clean or "FATURA" in c_clean:
+            if fatura_borcu_col is None: fatura_borcu_col = col
 
     cols_list = list(df.columns)
-    if firma_col is None and len(cols_list) > 2: firma_col = cols_list[2] # CSV formatına göre 3. sütun Müşteri Adı
-    if bakiye_col is None and len(cols_list) > 7: bakiye_col = cols_list[7] # CSV formatına göre Bakiye sütunu
+    if firma_col is None and len(cols_list) > 2: firma_col = cols_list[2] # Müşteri Adı
+    if fatura_borcu_col is None and len(cols_list) > 3: fatura_borcu_col = cols_list[3] # Fatura Borcu sütunu
 
     valid_records = []
     unmatched_records = []
@@ -314,9 +283,9 @@ def process_f4_payment_list(df):
     for _, row in df.iterrows():
         raw_firma = str(row[firma_col]).strip() if firma_col in row else ""
         c_firma = clean_string(raw_firma)
-        bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col in row else 0.0
+        fatura_val = parse_turkish_float(row[fatura_borcu_col]) if fatura_borcu_col in row else 0.0
 
-        if bakiye_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM"]:
+        if fatura_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM"]:
             continue
 
         assigned_person = None
@@ -332,9 +301,9 @@ def process_f4_payment_list(df):
                     break
 
         if assigned_person:
-            valid_records.append({"Personel": assigned_person, "Firma Adı": matched_real_name or raw_firma, "Fatura Borcu": bakiye_val, "Açıklama": ""})
+            valid_records.append({"Personel": assigned_person, "Firma Adı": matched_real_name or raw_firma, "Fatura Borcu": fatura_val, "Açıklama": ""})
         else:
-            unmatched_records.append({"Firma Adı": raw_firma, "Fatura Borcu": bakiye_val})
+            unmatched_records.append({"Firma Adı": raw_firma, "Fatura Borcu": fatura_val})
 
     return pd.DataFrame(valid_records), pd.DataFrame(unmatched_records)
 
@@ -396,7 +365,7 @@ with st.sidebar:
     if st.button("📋 F4 ÖDEME LİSTESİ"): st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
 
 # ==========================================
-# DOSYA İŞLEME
+# DOSYA İŞLEME VE OTOMATİK ALGILAMA
 # ==========================================
 perf_df = None
 if uploaded_file is not None:
@@ -414,6 +383,8 @@ if uploaded_file is not None:
             valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
             st.session_state.f4_df = valid_f4
             st.session_state.f4_unmatched = unmatched_f4
+            # Dosya yüklenir yüklenmez F4 paneline geçiş yaparak akışı hızlandıralım
+            st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
     except Exception as e:
         st.error(f"❌ Dosya Okuma Hatası: {e}")
 
@@ -444,7 +415,7 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Personel Hesap Alımı ekranı yükleyin.")
 
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme Listesi ve Tahsilat Takibi")
+    st.title("📋 F4 Ödeme Listesi ve Tahsilat Takibi (Fatura Borcu)")
     if st.session_state.f4_df is not None and not st.session_state.f4_df.empty:
         f4_main_df = st.session_state.f4_df
         unique_personnel = sorted(f4_main_df["Personel"].unique().tolist())
@@ -487,4 +458,4 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             with st.expander("🚨 Eşleşmeyen Firmalar"):
                 st.dataframe(st.session_state.f4_unmatched, use_container_width=True)
     else:
-        st.info("💡 Sol menüden **F4 ÖDEME LİSTESİ** (CSV/Excel) dosyanızı yükleyin.")
+        st.info("💡 Sol menüden **F4 ÖDEME LİSTESİ** dosyanızı yükleyin.")
