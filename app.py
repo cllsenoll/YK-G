@@ -535,9 +535,17 @@ def process_f4_payment_list(df):
     clean_map = {clean_string(k): (k, v) for k, v in FİRMA_PERSONEL_MAP.items()}
     
     for _, row in df.iterrows():
-        raw_firma = str(row[firma_col]).strip() if firma_col is not None and firma_col in row else ""
+        try:
+            raw_firma = str(row[firma_col]).strip() if firma_col is not None and firma_col in row else ""
+        except Exception:
+            raw_firma = ""
+        
         c_firma = clean_string(raw_firma)
-        bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col is not None and bakiye_col in row else 0.0
+        
+        try:
+            bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col is not None and bakiye_col in row else 0.0
+        except Exception:
+            bakiye_val = 0.0
         
         if bakiye_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM", "GENELTOPLAM"]:
             continue
