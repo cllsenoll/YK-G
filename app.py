@@ -107,6 +107,17 @@ custom_css = """
         font-weight: 700;
         color: #F57C00 !important;
     }
+    .status-badge {
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: bold;
+        display: inline-block;
+        margin-top: 4px;
+    }
+    .status-kusursuz { background: rgba(46, 125, 50, 0.2); color: #4CAF50; border: 1px solid #4CAF50; }
+    .status-basarili { background: rgba(13, 110, 253, 0.2); color: #0D6EFD; border: 1px solid #0D6EFD; }
+    .status-gelismeli { background: rgba(244, 67, 54, 0.2); color: #F44336; border: 1px solid #F44336; }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -121,26 +132,22 @@ def clean_string(text):
     replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
     for search, replace in replacements.items():
         text = text.replace(search, replace)
-    # Sadece harf ve rakamları bırak, boşluk/özel karakterleri temizle
     text = re.sub(r'[^A-Z0-9]', '', text)
     return text
 
 # ==========================================
-# OTOMATİK KURYE FOTOĞRAFI ALMA (GELİŞMİŞ EŞLEŞTİRME)
+# OTOMATİK KURYE FOTOĞRAFI ALMA
 # ==========================================
 def get_courier_photo(courier_name):
     clean_courier = clean_string(courier_name)
-    
     search_dirs = []
     if os.path.exists("kuryeler"):
         search_dirs.append("kuryeler")
-    search_dirs.append(".") # Ana Depo Dizinı
+    search_dirs.append(".") 
 
     for target_dir in search_dirs:
         try:
             files = os.listdir(target_dir)
-            
-            # 1. Aşama: Tam Eşleşme Kontrolü
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -156,7 +163,6 @@ def get_courier_photo(courier_name):
                             except Exception:
                                 pass
 
-            # 2. Aşama: Esnek/Kısmi Eşleşme Kontrolü (İçerme)
             for file in files:
                 file_path = os.path.join(target_dir, file)
                 if os.path.isfile(file_path):
@@ -171,19 +177,16 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
-
         except Exception:
             continue
                         
-    # Fotoğraf hiçbir şekilde bulunamazsa varsayılan avatar
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
-# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
+# AKILLI DOSYA OKUMA MOTORU
 # ==========================================
 def smart_read_file(uploaded_file):
     file_bytes = uploaded_file.getvalue()
-
     encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
     separators = [';', ',', '\t', None]
 
@@ -191,27 +194,17 @@ def smart_read_file(uploaded_file):
         for sep in separators:
             try:
                 engine_type = 'python' if sep is None else None
-                df = pd.read_csv(
-                    io.BytesIO(file_bytes),
-                    sep=sep,
-                    encoding=enc,
-                    engine=engine_type,
-                    on_bad_lines='skip'
-                )
+                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding=enc, engine=engine_type, on_bad_lines='skip')
                 if df is not None and len(df.columns) > 1 and len(df) > 0:
                     return df
             except Exception:
                 continue
 
-    try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
-    except Exception:
-        pass
-
-    try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
-    except Exception:
-        pass
+    for engine in ['openpyxl', 'xlrd']:
+        try:
+            return pd.read_excel(io.BytesIO(file_bytes), engine=engine)
+        except Exception:
+            pass
 
     for enc in ['utf-8', 'cp1254', 'latin1']:
         try:
@@ -291,6 +284,7 @@ def process_excel_data(df):
 
     res_df = pd.DataFrame(summary)
     if not res_df.empty:
+        res_df.sort_values(by="Başarı Oranı", ascending=False, inplace=True)
         res_df.index = range(1, len(res_df) + 1)
         
     return res_df, None
@@ -315,7 +309,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=None)
+    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=['csv', 'xlsx', 'xls', 'html'])
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -395,10 +389,19 @@ if st.session_state.active_tab == "Ana Panel":
             
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
+
+        # YENİ ÖZELLİK: İndirme Butonu
+        csv_data = perf_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 İşlenmiş Raporu İndir (CSV)",
+            data=csv_data,
+            file_name="gorukle_acente_performans_raporu.csv",
+            mime="text/csv"
+        )
         
     elif raw_df is not None and missing_columns is not None:
         st.success("✅ Dosya başarıyla okundu!")
-        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde bir liste. Veriler aşağıda listelenmiştir:")
+        st.info("ℹ️ Yüklenen dosya zimmet raporu haricinde farklı bir liste. Veriler aşağıda listelenmiştir:")
         
         raw_display = raw_df.copy()
         raw_display.index = range(1, len(raw_display) + 1)
@@ -415,7 +418,12 @@ elif st.session_state.active_tab == "Kurye Performans":
     if perf_df is not None and not perf_df.empty:
         st.success(f"✅ AT ZİMMET İZLEME raporu başarıyla işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
         
-        for idx, row in perf_df.iterrows():
+        # YENİ ÖZELLİK: Kurye Arama / Filtreleme Çubuğu
+        secilen_kurye = st.selectbox("🔍 Personel / Kurye Filtrele", ["Tüm Kuryeler"] + list(perf_df["Personel"].unique()))
+        
+        filtered_perf_df = perf_df if secilen_kurye == "Tüm Kuryeler" else perf_df[perf_df["Personel"] == secilen_kurye]
+
+        for idx, row in filtered_perf_df.iterrows():
             p_name = row["Personel"]
             zimmet = row["Zimmet"]
             teslim = row["Teslim Edilen"]
@@ -427,6 +435,14 @@ elif st.session_state.active_tab == "Kurye Performans":
 
             avatar_url = get_courier_photo(p_name)
 
+            # Dinamik Durum Rozeti Belirleme
+            if rate >= 95:
+                badge_html = '<span class="status-badge status-kusursuz">🏆 KUSURSUZ</span>'
+            elif rate >= 80:
+                badge_html = '<span class="status-badge status-basarili">🌟 BAŞARILI</span>'
+            else:
+                badge_html = '<span class="status-badge status-gelismeli">⚠️ GELİŞMELİ</span>'
+
             card_html = f"""
             <div class="person-card notranslate">
                 <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
@@ -434,7 +450,8 @@ elif st.session_state.active_tab == "Kurye Performans":
                         <img src="{avatar_url}" class="avatar-circle">
                         <div>
                             <div class="person-name">{p_name}</div>
-                            <small style="color: #F57C00;">Saha Kuryesi</small>
+                            <small style="color: #F57C00;">Saha Kuryesi</small><br>
+                            {badge_html}
                         </div>
                     </div>
                     <div style="text-align: center;">
