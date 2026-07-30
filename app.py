@@ -496,56 +496,59 @@ def process_personnel_account_data(df):
 
 
 # ==========================================
-# GÜÇLENDİRİLMİŞ F4 ÖDEME LİSTESİ PARSER
+# KESİN ÇÖZÜMLÜ F4 ÖDEME LİSTESİ PARSER
 # ==========================================
 def process_f4_payment_list(df):
     header_idx = 0
     for idx, row in df.head(10).iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
-        if any(k in row_str for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "BORC", "BAKIYE", "BAKİYE"]):
+        if "MÜŞTERİ ADI" in row_str or "FATURA BORCU" in row_str or "MUSTERI" in row_str or "BORC" in row_str:
             header_idx = int(idx)
             break
             
     df.columns = df.iloc[header_idx].astype(str).str.strip()
     df = df.iloc[header_idx + 1:].reset_index(drop=True)
 
-    firma_col, bakiye_col = None, None
+    firma_col = None
+    bakiye_col = None
+
     for col in df.columns:
         c_upper = str(col).upper()
-        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "MÜŞTERİ ADI", "ADI", "ADİ"]) and firma_col is None:
-            firma_col = col
-        elif any(k in c_upper for k in ["BORC", "BORÇ", "BAKIYE", "BAKİYE", "TUTAR"]) and bakiye_col is None:
-            bakiye_col = col
-            
+        clean_c = clean_string(c_upper)
+        if "MUSTERIADI" in clean_c or "MUSTERI" in clean_c or "FIRMA" in clean_c or "UNVAN" in clean_c:
+            if firma_col is None:
+                firma_col = col
+        if "FATURABORCU" in clean_c or "BORC" in clean_c or "BAKIYE" in clean_c or "TUTAR" in clean_c:
+            if bakiye_col is None:
+                bakiye_col = col
+
     cols_list = list(df.columns)
-    if firma_col is None and len(cols_list) > 0: 
+    if firma_col is None and len(cols_list) > 0:
         firma_col = cols_list[0]
-    if bakiye_col is None and len(cols_list) > 1: 
-        for c in cols_list[1:]:
-            sample_val = parse_turkish_float(df[c].iloc[0]) if len(df) > 0 else 0
-            if sample_val > 0:
-                bakiye_col = c
-                break
-        if bakiye_col is None:
-            bakiye_col = cols_list[1]
-    
+    if bakiye_col is None and len(cols_list) > 1:
+        bakiye_col = cols_list[1]
+
     valid_records = []
     unmatched_records = []
     
     clean_map = {clean_string(k): (k, v) for k, v in FİRMA_PERSONEL_MAP.items()}
     
     for _, row in df.iterrows():
-        try:
-            raw_firma = str(row[firma_col]).strip() if firma_col is not None and firma_col in row else ""
-        except Exception:
-            raw_firma = ""
+        raw_firma = ""
+        if firma_col is not None:
+            try:
+                raw_firma = str(row[firma_col]).strip()
+            except Exception:
+                pass
         
         c_firma = clean_string(raw_firma)
         
-        try:
-            bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col is not None and bakiye_col in row else 0.0
-        except Exception:
-            bakiye_val = 0.0
+        bakiye_val = 0.0
+        if bakiye_col is not None:
+            try:
+                bakiye_val = parse_turkish_float(row[bakiye_col])
+            except Exception:
+                bakiye_val = 0.0
         
         if bakiye_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM", "GENELTOPLAM"]:
             continue
@@ -676,8 +679,13 @@ if uploaded_file is not None:
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
             
-        # 3. Kontrol: F4 Ödeme Listesi mi? (Esnek Algılama)
+        # 3. Kontrol: F4 Ödeme Listesi mu? (Müşteri Adı / Fatura Borcu)
+        elif "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "FATURA BORCU" in cols_str or "BORC" in cols_str:
+            valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
+            st.session_state.f4_df = valid_f4
+            st.session_state.f4_unmatched = unmatched_f4
         else:
+            # Genel varsayılan olarak F4 işlemeyi dene
             valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
             st.session_state.f4_df = valid_f4
             st.session_state.f4_unmatched = unmatched_f4
