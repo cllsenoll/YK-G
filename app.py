@@ -500,9 +500,9 @@ def process_personnel_account_data(df):
 # ==========================================
 def process_f4_payment_list(df):
     header_idx = 0
-    for idx, row in df.head(3).iterrows():
+    for idx, row in df.head(5).iterrows():
         row_str = " ".join([str(val).upper() for val in row.values])
-        if any(k in row_str for k in ["FIRMA", "UNVAN", "MUSTERI", "BORC", "BAKIYE"]):
+        if any(k in row_str for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "BORC", "BAKIYE", "BAKİYE"]):
             header_idx = int(idx)
             break
             
@@ -512,9 +512,9 @@ def process_f4_payment_list(df):
     firma_col, bakiye_col = None, None
     for col in df.columns:
         c_upper = str(col).upper()
-        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "ADI", "MÜŞTERİ"]) and not firma_col:
+        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "MÜŞTERİ", "ADI", "ADİ"]) and not firma_col:
             firma_col = col
-        elif any(k in c_upper for k in ["BORC", "BAKIYE", "TUTAR", "BAKİYE"]) and not bakiye_col:
+        elif any(k in c_upper for k in ["BORC", "BORÇ", "BAKIYE", "BAKİYE", "TUTAR"]) and not bakiye_col:
             bakiye_col = col
             
     cols_list = list(df.columns)
