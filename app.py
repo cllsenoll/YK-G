@@ -113,11 +113,6 @@ custom_css = """
     .person-name { font-size: 15px; font-weight: 700; color: #FFFFFF !important; }
     .metric-title { font-size: 11px; color: rgba(255, 255, 255, 0.5) !important; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
     .metric-value { font-size: 19px; font-weight: 700; }
-    .channel-badge {
-        background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 6px; padding: 4px 10px; font-size: 12px; display: inline-block; margin-right: 8px; margin-top: 8px;
-    }
-    .badge-val { font-weight: 700; color: #F57C00 !important; }
     .kasa-box { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 20px; margin-top: 20px; }
 </style>
 """
@@ -328,23 +323,36 @@ def process_personnel_account_data(df):
     result_df.index = range(1, len(result_df) + 1)
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
-# F4 Veri İşleme Fonksiyonu (Yalnızca F4 Paneline Ait Olacak Şekilde)
+# Güncellenmiş ve Esnek F4 Veri İşleme Fonksiyonu
 def process_f4_data(df, mapping):
     df.columns = df.columns.astype(str).str.strip()
     
     firma_col = None
     borc_col = None
     
+    # Başlıkları akıllı arama ile bulma
     for col in df.columns:
         c_clean = clean_string(col)
-        if "MUSTERI" in c_clean or "FIRMA" in c_clean or "MÜŞTERİ" in c_clean:
+        if any(k in c_clean for k in ["MUSTERI", "FIRMA", "UNVAN", "AD"]):
             if firma_col is None: firma_col = col
-        if "FATURA" in c_clean or "BORC" in c_clean or "TUTAR" in c_clean or "BAKIYE" in c_clean:
+        if any(k in c_clean for k in ["FATURA", "BORC", "TUTAR", "BAKIYE", "BAKİYE"]):
             if borc_col is None: borc_col = col
 
     cols_list = list(df.columns)
-    if firma_col is None and len(cols_list) > 2: firma_col = cols_list[2]
-    if borc_col is None and len(cols_list) > 7: borc_col = cols_list[7]
+    # Eğer başlık eşleşmezse varsayılan konumları veya veri içeren sütunları dene
+    if firma_col is None and len(cols_list) > 0:
+        for c in cols_list:
+            if df[c].dtype == object:
+                firma_col = c
+                break
+        if firma_col is None: firma_col = cols_list[0]
+        
+    if borc_col is None and len(cols_list) > 1:
+        for c in cols_list:
+            if c != firma_col and (df[c].dtype in ['float64', 'int64'] or df[c].astype(str).str.contains(r'\d').any()):
+                borc_col = c
+                break
+        if borc_col is None: borc_col = cols_list[-1]
 
     clean_map = {clean_string(k): (k, v) for k, v in mapping.items()}
     
@@ -356,7 +364,7 @@ def process_f4_data(df, mapping):
         c_firma = clean_string(raw_firma)
         borc_val = parse_turkish_float(row[borc_col]) if borc_col in row else 0.0
 
-        if borc_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM"]:
+        if borc_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM", "GENELTOPLAM"]:
             continue
 
         assigned_person = None
@@ -469,8 +477,8 @@ if uploaded_file is not None:
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
             
-        # 3. F4 Ödeme Listesi Kontrolü (Diğer panellere veri akışını kesmek için tamamen izole edilmiştir)
-        elif "MUSTERI" in cols_str or "FIRMA" in cols_str or "FATURA" in cols_str or "F4" in fname_upper or len(raw_df.columns) >= 5:
+        # 3. F4 Ödeme Listesi Kontrolü (Genişletilmiş ve esnek koşul)
+        else:
             valid_f4, unmatched_f4 = process_f4_data(raw_df, st.session_state.firma_personel_map)
             st.session_state.f4_df = valid_f4
             st.session_state.f4_unmatched = unmatched_f4
