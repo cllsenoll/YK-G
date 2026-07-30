@@ -27,6 +27,8 @@ if 'kasa_miktari' not in st.session_state:
     st.session_state.kasa_miktari = 0.0
 if 'f4_df' not in st.session_state:
     st.session_state.f4_df = None
+if 'f4_unmatched' not in st.session_state:
+    st.session_state.f4_unmatched = None
 if 'f4_manual_rows' not in st.session_state:
     st.session_state.f4_manual_rows = {}
 
@@ -494,27 +496,46 @@ def process_personnel_account_data(df):
 
 
 # ==========================================
-# F4 ÖDEME LİSTESİ PARSER VE ANALİZ MOTORU
+# GÜÇLENDİRİLMİŞ F4 ÖDEME LİSTESİ PARSER
 # ==========================================
 def process_f4_payment_list(df):
-    df.columns = df.columns.astype(str).str.strip()
-    
+    # Başlık satırını bulma (ilk 3 satır içinde anahtar kelime arama)
+    header_idx = 0
+    for idx, row in df.head(3).iterrows():
+        row_str = " ".join([str(val).upper() for val in row.values])
+        if "FIRMA" in row_str or "UNVAN" in row_str or "MUSTERI" in row_str or "BORC" in row_str or "BAKIYE" in row_str:
+            header_idx = idx
+            break
+            
+    if header_idx > 0 or header_idx == 0:
+        df.columns = df.iloc[header_idx].astype(str).str.strip()
+        df = df.iloc[header_idx + 1:].reset_index(drop=True)
+    else:
+        df.columns = df.columns.astype(str).str.strip()
+
     firma_col, bakiye_col = None, None
     for col in df.columns:
         c_upper = str(col).upper()
-        if ("FIRMA" in c_upper or "UNVAN" in c_upper or "MUSTERI" in c_upper) and not firma_col:
+        if any(k in c_upper for k in ["FIRMA", "UNVAN", "MUSTERI", "ADI", "MÜŞTERİ"]) and not firma_col:
             firma_col = col
-        elif ("BORC" in c_upper or "BAKIYE" in c_upper or "TUTAR" in c_upper or "BAKIYE" in c_upper) and not bakiye_col:
+        elif any(k in c_upper for k in ["BORC", "BAKIYE", "TUTAR", "BAKİYE"]) and not bakiye_col:
             bakiye_col = col
             
     cols_list = list(df.columns)
     if not firma_col and len(cols_list) > 0: firma_col = cols_list[0]
-    if not bakiye_col and len(cols_list) > 1: bakiye_col = cols_list[1]
+    if not bakiye_col and len(cols_list) > 1: 
+        # Sayısal değer barındıran ilk sütunu bulmaya çalışalım
+        for c in cols_list[1:]:
+            sample_val = parse_turkish_float(df[c].iloc[0]) if len(df) > 0 else 0
+            if sample_val > 0:
+                bakiye_col = c
+                break
+        if not bakiye_col:
+            bakiye_col = cols_list[1]
     
     valid_records = []
     unmatched_records = []
     
-    # Map anahtarlarını temizle (kolay eşleşme için)
     clean_map = {clean_string(k): (k, v) for k, v in FİRMA_PERSONEL_MAP.items()}
     
     for _, row in df.iterrows():
@@ -522,18 +543,15 @@ def process_f4_payment_list(df):
         c_firma = clean_string(raw_firma)
         bakiye_val = parse_turkish_float(row[bakiye_col]) if bakiye_col else 0.0
         
-        # 0 veya altındaki borçları geç
-        if bakiye_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM"]:
+        if bakiye_val <= 0 or not c_firma or c_firma in ["NAN", "NONE", "TOPLAM", "GENELTOPLAM"]:
             continue
             
-        # Eşleştirme yap
         assigned_person = None
         matched_real_name = None
         
         if c_firma in clean_map:
             matched_real_name, assigned_person = clean_map[c_firma]
         else:
-            # Kısmi eşleşme kontrolü
             for map_clean, (map_real, map_pers) in clean_map.items():
                 if map_clean in c_firma or c_firma in map_clean:
                     matched_real_name = map_real
@@ -577,7 +595,6 @@ def generate_pdf_bytes(personnel_name, df_subset):
     pdf.cell(0, 8, f'Tarih: {pd.Timestamp.now().strftime("%d.%m.%Y")}', 0, 1, 'L')
     pdf.ln(5)
     
-    # Tablo Başlıkları
     pdf.set_font('Arial', 'B', 10)
     pdf.set_fill_color(10, 88, 202)
     pdf.set_text_color(255, 255, 255)
@@ -655,8 +672,8 @@ if uploaded_file is not None:
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
             
-        # 3. Kontrol: F4 Ödeme Listesi mi? (Firma / Bakiye içeriyorsa)
-        elif "FIRMA" in cols_str or "UNVAN" in cols_str or "BORC" in cols_str or "BAKIYE" in cols_str or "MUSTERI" in cols_str:
+        # 3. Kontrol: F4 Ödeme Listesi mi? (Esnek Algılama)
+        else:
             valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
             st.session_state.f4_df = valid_f4
             st.session_state.f4_unmatched = unmatched_f4
@@ -815,21 +832,17 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     if st.session_state.f4_df is not None and not st.session_state.f4_df.empty:
         f4_main_df = st.session_state.f4_df
         
-        # Üst perde personel seçimi
         unique_personnel = sorted(f4_main_df["Personel"].unique().tolist())
         selected_person = st.selectbox("👤 Personel Seçin (Üst Perde)", unique_personnel)
         
         if selected_person:
-            # Personel alt kümesi
             p_subset = f4_main_df[f4_main_df["Personel"] == selected_person].copy()
             
-            # Manuel satır ekleme state yönetimi
             if selected_person not in st.session_state.f4_manual_rows:
                 st.session_state.f4_manual_rows[selected_person] = pd.DataFrame(columns=["Firma Adı", "Fatura Borcu", "Açıklama"])
                 
             manual_df = st.session_state.f4_manual_rows[selected_person]
             
-            # Form ile manuel ekleme
             with st.form(key=f"manual_form_{selected_person}", clear_on_submit=True):
                 st.subheader("➕ Manuel Tahsilat / Firma Satırı Ekle")
                 m_col1, m_col2, m_col3 = st.columns([3, 2, 1])
@@ -842,13 +855,11 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                     st.session_state.f4_manual_rows[selected_person] = pd.concat([manual_df, new_row_df], ignore_index=True)
                     st.rerun()
 
-            # Birleştirilmiş tablo
             combined_person_df = pd.concat([p_subset[["Firma Adı", "Fatura Borcu", "Açıklama"]], manual_df], ignore_index=True)
             combined_person_df.index = range(1, len(combined_person_df) + 1)
             
             st.subheader(f"📑 {selected_person} İçin Otomatik Tahsilat Listesi")
             
-            # Data editor ile açıklama girilebilmesi / düzenlenebilmesi
             edited_person_list = st.data_editor(
                 combined_person_df,
                 column_config={
@@ -860,7 +871,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 use_container_width=True
             )
             
-            # PDF Çıktı Butonu
             pdf_bytes = generate_pdf_bytes(selected_person, edited_person_list)
             st.download_button(
                 label=f"📥 {selected_person} - Tahsilat Listesini PDF İndir",
@@ -869,8 +879,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 mime="application/pdf"
             )
             
-        # Eşleşmeyen Firmalar Raporu
-        if "f4_unmatched" in st.session_state and not st.session_state.f4_unmatched.empty:
+        if st.session_state.f4_unmatched is not None and not st.session_state.f4_unmatched.empty:
             with st.expander("🚨 Datadaki İsimlerle Uyuşmayan ve Borcu Olan Firmalar"):
                 st.dataframe(st.session_state.f4_unmatched, use_container_width=True)
                 
