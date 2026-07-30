@@ -43,26 +43,36 @@ FİRMA_PERSONEL_MAP = {
     "ARMENDUS OPERATÖR KOL VE PANO SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
     "ARTEA DIŞ TİCARET MAKİNA SANAYİ LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
     "AYDEMİR DERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "BARBAROS BİLİŞİK": "CELAL ŞENOL",
+    "BAROMAK MAKİNE SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
     "BAYAGRO TARIM İLAÇLARI SANAYİ VE TİCARETLTD. ŞTİ.": "ALATTİN CEBECİ",
+    "BAŞATLAR ORMAN ÜRÜNLERİ VE AMBALAJ SAN.TİC.LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "BEKA-MAK MAKİNA SANAYİ VE TİCARET A.Ş.": "HASAN SAĞLAM",
     "BEREKET İLAÇ KOZMETİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "BES İŞ GÜVENLİK MALZEMELERİ D.T.K.İ.T.K.M.S.V.T.L.ŞT": "HASAN SAĞLAM",
     "BURKON MOBİLYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "BURMOD TEKSTİL SAN.TİC.A.Ş.-BURSA ŞB.": "SERGEN GÖRÜROĞLU",
     "BURSA DERİ İHTİSAS VE KARMA ORGANİZE SANAYİ BÖLGESİ": "SERGEN GÖRÜROĞLU",
     "BURSA JELATİN GIDA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
     "BİLEKLER İNŞAAT MAKİNALARI SANAYİ VETİCARET LTD.ŞTİ.": "HASAN SAĞLAM",
     "DEMİRCİOĞLU ŞASE ENDÜSTRİYEL YAĞ OTOMOTİV TEKSTİL GIDA İNŞAAT SANAYİ VE TİCARET A.Ş.": "ALATTİN CEBECİ",
     "DİGİTORİUM ELEKTRONİK TEKNOLOJİLERİ ANONİM ŞİRKETİ": "HASAN SAĞLAM",
-    "EKSAGATE ELEKTRONİK MÜHENDİSLİK VE BİLGİSAYAR SANAYİ TİCARET ANONİM ŞİRKETİ-GOSB": "CELAL ŞENOL",
+    "DOĞANYİĞİTLER ORGANİK GIDA SANAYİ TİCARET LİMİTED ŞİRKETİ": "SUAT ARI",
     "ELECTRA GRUP MÜHENDİSLİK ELEKTRİK TAAHHÜT MEKANİK PANO İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
     "ELECTRA KABLOSİSTEMLERİ SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
     "ELECTRA PROJE ELEKTRİK MÜHENDİSLİK TAAHHÜT İNŞAAT ARAÇ KİRALAMA İTHALAT İHRACAT VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
     "ENDER DURSAK": "CELAL ŞENOL",
     "F.S.K.MAKİNE İMALATTAAH.VE GIDA TEKN.SAN.T.LTD.ŞTİ.": "HASAN SAĞLAM",
     "FLY MOBİLYA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "HMT MAKİNA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI",
     "IPM GALVANO YÜZEY KAPLAMA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
     "KCL LOJİSTİK OTOMOTİV SANAYİ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
     "KOLİSAN AMBALAJ SANAYİ VE TİCARET A.Ş.": "ALATTİN CEBECİ",
+    "KOÇASLANLAR OTOMOTİV İNŞ.TAŞIMA PETROL ÜRGIDA SAN VE TİC A.Ş.-BURSA GÖRÜKLE": "ALATTİN CEBECİ",
+    "KURTSAN GIDA SAN VE TİC LTD ŞTİ": "SUAT ARI",
     "KÜBRA AYDEMİR": "AHMET BERKAN ÖKSÜZ",
     "LİGNUM AĞAÇ MAKİNELERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "LOKMAN KOÇASLAN OTOMOTİV SANAYİ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
     "M-BEND METAL ÇELİK MAKİNA İNŞAAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
     "MAVİFORM METAL KALIPFİKSTÜR VE APARAT SAN.VE TİC.LTD": "ALATTİN CEBECİ",
     "MERZE MOBİLYA TASARIM İNŞAAT SANAYİ TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
@@ -71,13 +81,18 @@ FİRMA_PERSONEL_MAP = {
     "MURSAN FİBERGLASS VE DENİZ ARAÇLARI TURİZM SANAYİ TİCARET PAZARLAMA LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
     "MUSA TEKNOBİLİŞİM BURSA": "MEHMET KAYMAZ",
     "MUVA TEKSTİL SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
+    "MİNTEKS TEKSTİL SAN VE TİC. LTD.ŞTİ. İŞLETME ADI:MİNTEKS": "SUAT ARI",
     "NARVİN TEKSTİL EMLAK KOZMETİK SOSYAL MEDYA İHRACAT İTHALAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
     "NEFES DERİ TEKSTİL OTOMOTİV SANAYİ VE TİCARE T LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
     "NOVMA KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SUAT ARI",
     "SELFİE TARIMSAL TEDARİK SERACILIK DEPOCULUK DANIŞMANLIK SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
     "SERKAN KUYUMCU": "AHMET BERKAN ÖKSÜZ",
+    "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "SUAT ARI",
     "TUBA ÖZCAN": "SUAT ARI",
     "TURKAUTO MOTORLU ARAÇLAR SANAYİ VE TİCARET LİMİTED ŞİRKETİ.": "HASAN SAĞLAM",
+    "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI",
+    "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "SUAT ARI",
     "VİYA OTOMOTİV CAM TURİZM DENİZCİLİK SANAYİ VE TİCARET LTD. ŞTİ.": "HASAN SAĞLAM",
     "YERLİYURT MARİN DENİZ ARAÇ KAB.TUR.SVE P.LTD.ŞTİ.": "SUAT ARI",
     "YILDIZ GRUBU DERİ KİMYA İNŞAAT TARIM SANAYİ VE DIŞ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
@@ -257,7 +272,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# GÜNCELLENMİŞ F4 ÖDEME LİSTESİ PARSER (FATURA BORCU ODAKLI)
+# F4 ÖDEME LİSTESİ PARSER (FATURA BORCU ODAKLI)
 # ==========================================
 def process_f4_payment_list(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -273,8 +288,8 @@ def process_f4_payment_list(df):
             if fatura_borcu_col is None: fatura_borcu_col = col
 
     cols_list = list(df.columns)
-    if firma_col is None and len(cols_list) > 2: firma_col = cols_list[2] # Müşteri Adı
-    if fatura_borcu_col is None and len(cols_list) > 3: fatura_borcu_col = cols_list[3] # Fatura Borcu sütunu
+    if firma_col is None and len(cols_list) > 2: firma_col = cols_list[2]
+    if fatura_borcu_col is None and len(cols_list) > 3: fatura_borcu_col = cols_list[3]
 
     valid_records = []
     unmatched_records = []
@@ -301,9 +316,9 @@ def process_f4_payment_list(df):
                     break
 
         if assigned_person:
-            valid_records.append({"Personel": assigned_person, "Firma Adı": matched_real_name or raw_firma, "Fatura Borcu": fatura_val, "Açıklama": ""})
+            valid_records.append({"Personel": assigned_person, "Firma Adı": matched_real_name or raw_firma, "Fatura Borcu (₺)": fatura_val, "Açıklama": ""})
         else:
-            unmatched_records.append({"Firma Adı": raw_firma, "Fatura Borcu": fatura_val})
+            unmatched_records.append({"Firma Adı": raw_firma, "Fatura Borcu (₺)": fatura_val})
 
     return pd.DataFrame(valid_records), pd.DataFrame(unmatched_records)
 
@@ -328,13 +343,13 @@ def generate_pdf_bytes(personnel_name, df_subset):
     pdf.set_fill_color(10, 88, 202)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(90, 8, 'Firma Adi', 1, 0, 'C', True)
-    pdf.cell(40, 8, 'Fatura Borcu', 1, 0, 'C', True)
+    pdf.cell(40, 8, 'Fatura Borcu (TL)', 1, 0, 'C', True)
     pdf.cell(60, 8, 'Aciklama', 1, 1, 'C', True)
     pdf.set_font('Arial', '', 9)
     pdf.set_text_color(0, 0, 0)
     for _, row in df_subset.iterrows():
         pdf.cell(90, 7, str(row['Firma Adı'])[:45], 1, 0, 'L')
-        pdf.cell(40, 7, f"{float(row['Fatura Borcu']):,.2f} TL", 1, 0, 'R')
+        pdf.cell(40, 7, f"{float(row['Fatura Borcu (₺)']):,.2f} TL", 1, 0, 'R')
         pdf.cell(60, 7, str(row['Açıklama'])[:30], 1, 1, 'L')
     return pdf.output(dest='S').encode('latin1')
 
@@ -383,7 +398,6 @@ if uploaded_file is not None:
             valid_f4, unmatched_f4 = process_f4_payment_list(raw_df)
             st.session_state.f4_df = valid_f4
             st.session_state.f4_unmatched = unmatched_f4
-            # Dosya yüklenir yüklenmez F4 paneline geçiş yaparak akışı hızlandıralım
             st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
     except Exception as e:
         st.error(f"❌ Dosya Okuma Hatası: {e}")
@@ -415,17 +429,18 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Personel Hesap Alımı ekranı yükleyin.")
 
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme Listesi ve Tahsilat Takibi (Fatura Borcu)")
+    st.title("📋 F4 Ödeme Listesi")
     if st.session_state.f4_df is not None and not st.session_state.f4_df.empty:
         f4_main_df = st.session_state.f4_df
         unique_personnel = sorted(f4_main_df["Personel"].unique().tolist())
         
         if unique_personnel:
-            selected_person = st.selectbox("👤 Personel Seçin", unique_personnel)
+            st.markdown("Personel Seçin:")
+            selected_person = st.selectbox("Personel Seçin", unique_personnel, label_visibility="collapsed")
             p_subset = f4_main_df[f4_main_df["Personel"] == selected_person].copy()
             
             if selected_person not in st.session_state.f4_manual_rows:
-                st.session_state.f4_manual_rows[selected_person] = pd.DataFrame(columns=["Firma Adı", "Fatura Borcu", "Açıklama"])
+                st.session_state.f4_manual_rows[selected_person] = pd.DataFrame(columns=["Firma Adı", "Fatura Borcu (₺)", "Açıklama"])
                 
             manual_df = st.session_state.f4_manual_rows[selected_person]
             
@@ -435,21 +450,30 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 new_firma = c1.text_input("Firma Adı")
                 new_borc = c2.number_input("Fatura Borcu (₺)", min_value=0.0, step=10.0)
                 if c3.form_submit_button("Satır Ekle") and new_firma:
-                    new_r = pd.DataFrame([{"Firma Adı": new_firma.upper(), "Fatura Borcu": new_borc, "Açıklama": ""}])
+                    new_r = pd.DataFrame([{"Firma Adı": new_firma.upper(), "Fatura Borcu (₺)": new_borc, "Açıklama": ""}])
                     st.session_state.f4_manual_rows[selected_person] = pd.concat([manual_df, new_r], ignore_index=True)
                     st.rerun()
 
-            combined_df = pd.concat([p_subset[["Firma Adı", "Fatura Borcu", "Açıklama"]], manual_df], ignore_index=True)
+            combined_df = pd.concat([p_subset[["Firma Adı", "Fatura Borcu (₺)", "Açıklama"]], manual_df], ignore_index=True)
             combined_df.index = range(1, len(combined_df) + 1)
             
             edited_list = st.data_editor(combined_df, use_container_width=True)
+            
+            # Toplam Borç Gösterimi
+            toplam_borc = edited_list["Fatura Borcu (₺)"].sum()
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 15px; text-align: center; margin-top: 15px;">
+                <h3 style="margin: 0; color: #F57C00;">{selected_person} Toplam Fatura Borcu: {toplam_borc:,.2f} ₺</h3>
+            </div>
+            """, unsafe_allow_html=True)
             
             pdf_bytes = generate_pdf_bytes(selected_person, edited_list)
             st.download_button(
                 label=f"📥 {selected_person} - Tahsilat Listesini PDF İndir",
                 data=pdf_bytes,
                 file_name=f"{selected_person.replace(' ', '_')}_Tahsilat_Listesi.pdf",
-                mime="application/pdf"
+                mime="application/pdf",
+                use_container_width=True
             )
         else:
             st.warning("⚠️ F4 dosyasındaki firmalar eşleşme tablosundaki isimlerle uyuşmadı.")
