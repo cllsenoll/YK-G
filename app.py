@@ -26,8 +26,6 @@ if 'kasa_miktari' not in st.session_state:
     st.session_state.kasa_miktari = 0.0
 if 'perf_df' not in st.session_state:
     st.session_state.perf_df = None
-if 'f4_df' not in st.session_state:
-    st.session_state.f4_df = None
 if 'raw_df' not in st.session_state:
     st.session_state.raw_df = None
 
@@ -162,153 +160,6 @@ def parse_turkish_float(val):
         return 0.0
 
 # ==========================================
-# FİRMALAR.CSV VEYA DAHİLİ LİSTE YÜKLEME
-# ==========================================
-@st.cache_data
-def load_firmalar():
-    # Doğrudan verdiğiniz müşteri ve personel verilerini dahili olarak tanımlıyoruz
-    raw_data = [
-        ("KÜBRA AYDEMİR", "AHMET BERKAN ÖKSÜZ"),
-        ("SERKAN KUYUMCU", "AHMET BERKAN ÖKSÜZ"),
-        ("ACH DIŞ TİCARET SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("AKEL DERİ TEKS.SAN.VE DIŞ TİC.LTD.ŞTİ.", "ALATTİN CEBECİ"),
-        ("AKSUN AĞAÇ AMBALAJ KERESTE SAN. TİC.LTD.ŞTİ", "ALATTİN CEBECİ"),
-        ("ARTEA DIŞ TİCARET MAKİNA SANAYİ LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("AYDEMİR DERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("BAYAGRO TARIM İLAÇLARI SANAYİ VE TİCARETLTD. ŞTİ.", "ALATTİN CEBECİ"),
-        ("BEREKET İLAÇ KOZMETİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("BURMOD TEKSTİL SAN.TİC.A.Ş.-BURSA ŞB.", "ALATTİN CEBECİ"),
-        ("BURSA DERİ İHTİSAS VE KARMA ORGANİZE SANAYİ BÖLGESİ", "ALATTİN CEBECİ"),
-        ("BURSA JELATİN GIDA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("CİVAN GERİ DÖNÜŞÜM İZOLASYON PLASTİK METAL,İNŞAAT TAAH.SAN.VE TİC.LTD.ŞTİ.", "ALATTİN CEBECİ"),
-        ("DEMİRCİOĞLU ŞASE ENDÜSTRİYEL YAĞ OTOMOTİV TEKSTİL GIDA İNŞAAT SANAYİ VE TİCARET A.Ş.", "ALATTİN CEBECİ"),
-        ("EDDA MAKİNE AMBALAJ NAKLİYE İNŞAAT KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("EMRE DERELİ - DERELİ MARİNE", "ALATTİN CEBECİ"),
-        ("ERBA FİNİSAJ DERİ SANAYİ VE TİCARET LTD.ŞTİ.", "ALATTİN CEBECİ"),
-        ("FLY MOBİLYA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("GESU ARITMA SİSTEMLERİ SANAYİ VE TİCARET LTD.ŞTİ.", "ALATTİN CEBECİ"),
-        ("KOLİSAN AMBALAJ SANAYİ VE TİCARET A.Ş.", "ALATTİN CEBECİ"),
-        ("LAS-SAN LASTİK PLASTİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("M-BEND METAL ÇELİK MAKİNA İNŞAAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("MAVİFORM METAL KALIPFİKSTÜR VE APARAT SAN.VE TİC.LTD", "ALATTİN CEBECİ"),
-        ("MECANICA CNC MAKİNE VE SERVİS LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("MERZE MOBİLYA TASARIM İNŞAAT SANAYİ TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("MET-RİN DERİ MAKİNELERİ VE METAL SANAYİ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("MNC BİTKİSEL VE SAĞLIK ÜRÜNLERİ REKLAM VE ORGANİZASYON BİLİŞİM TEKNOLOJİLERİ İNŞAAT SAN.TİC.LTD.ŞTİ.", "ALATTİN CEBECİ"),
-        ("MORKİM KİMYA İNŞAAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("MURSİMAR FİBERGLASS VE DENİZ ARAÇLARI TURİZM SANAYİ TİCARET PAZARLAMA LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("NOVMA KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("SOMBURSA BAĞLANTI ELEMANLARI TİCARET VESAN.VE A.Ş.", "ALATTİN CEBECİ"),
-        ("VAKETA DERİCİLİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("YILDIZ GRUBU DERİ KİMYA İNŞAAT TARIM SANAYİ VE DIŞ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("ÖZBEYAZ DIŞ TİCARET TAŞIMACILIK ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("İDEA ENDÜSTRİYEL KİMYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("İNVENTA GIDA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
-        ("ALTINSOY MADENCİLİKVE TİCARET A.Ş.", "CELAL ŞENOL"),
-        ("ENDER DURSAK", "CELAL ŞENOL"),
-        ("KAPLANLAR SOĞUTMA SAN.VE TİC.AŞ.", "CELAL ŞENOL"),
-        ("NARVİN TEKSTİL EMLAK KOZMETİK SOSYAL MEDYA İHRACAT İTHALAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "CELAL ŞENOL"),
-        ("SELFİE TARIMSAL TEDARİK SERACILIK DEPOCULUK DANIŞMANLIK SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "CELAL ŞENOL"),
-        ("SERGEN GÖRÜROĞLU", "CELAL ŞENOL"),
-        ("ARMENDUS OPERATÖR KOL VE PANO SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
-        ("BAROMAK MAKİNE SANAYİ TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
-        ("BİLEKLER İNŞAAT MAKİNALARI SANAYİ VETİCARET LTD.ŞTİ.", "HASAN SAĞLAM"),
-        ("BURKON MOBİLYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
-        ("DICHERSEAL ELASTOMER TEKNOLOJİLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
-        ("DİGİTORİUM ELEKTRONİK TEKNOLOJİLERİ ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
-        ("ELECTRA KABLOSİSTEMLERİ SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
-        ("ELECTRA GRUP MÜHENDİSLİK ELEKTRİK TAAHHÜT MEKANİK PANO İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
-        ("ELECTRA PROJE ELEKTRİK MÜHENDİSLİK TAAHHÜT İNŞAAT ARAÇ KİRALAMA İTHALAT İHRACAT VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
-        ("F.S.K.MAKİNE İMALATTAAH.VE GIDA TEKN.SAN.T.LTD.ŞTİ.", "HASAN SAĞLAM"),
-        ("İPM GALVANO YÜZEY KAPLAMA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
-        ("LİGNUM AĞAÇ MAKİNELERİ SANAYİ TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
-        ("TEMPOLİFT ASANSÖR ELEKTRİK ELEKTRONİK SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
-        ("TURKAUTO MOTORLU ARAÇLAR SANAYİ VE TİCARET LİMİTED ŞİRKETİ.", "HASAN SAĞLAM"),
-        ("VİYA OTOMOTİV CAM TURİZM DENİZCİLİK SANAYİ VE TİCARET LTD. ŞTİ.", "HASAN SAĞLAM"),
-        ("YSL OTOMOTİV YAN SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
-        ("ÖZGÖZDE OTOMOTİV İNŞAAT İŞ MAKİNALARI PETROL NAKLİYE VE TURİZM HİZMETLERİ SANAYİ TİCARET A.Ş.", "HASAN SAĞLAM"),
-        ("ALPER ŞEN", "SERGEN GÖRÜROĞLU"),
-        ("ALSTOM RAYLI SİSTEM SANAYİ ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("AMPHENOL TURKEY BAĞLANTI ÇÖZÜMLERİ LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("BAŞATLAR ORMAN ÜRÜNLERİ VE AMBALAJ SAN.TİC.LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
-        ("D.K.C TEKNİK KAPLAMA APRE TEKSTİL KONFEKSİYON SERVİS TAŞIMACILIĞI SAN.VE TİC.LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
-        ("DEBSA TASARIM KONFEKSİYON TEKSTİL SANAYİ TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("DEVSAN ENDÜSTRİYEL OTOMASYON MAKİNA SANAYİ VE TİCARET A.Ş.", "SERGEN GÖRÜROĞLU"),
-        ("DOĞANYİĞİTLER ORGANİK GIDA SANAYİ TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("DİLAN YILDIRIM - OLİNA BUTİK", "SERGEN GÖRÜROĞLU"),
-        ("ESAUTOMOTION MEKATRONİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("GENÇ GÖZDE TARIM MAKİNALARI SANAYİ VE TİC.LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
-        ("GÜMÜŞ ARSLAN GENEL MAKİNE İMALATI ENERJİ VE ISI SİSTEMLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("HMT MAKİNA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("JACQUARD FASHİON KONFEKSİYON TEKSTİL SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("KCL LOJİSTİK OTOMOTİV SANAYİ TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("MATAY OTOMOTİV YAN SANAYİ VE TİCARET A .Ş.", "SERGEN GÖRÜROĞLU"),
-        ("MİNTEKS TEKSTİL SAN VE TİC. LTD.ŞTİ. İŞLETME ADI:MİNTEKS", "SERGEN GÖRÜROĞLU"),
-        ("MS MOTION OTOMOTİV ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("NOBEL TEKNİK OTO YANSANAYİ VE TİCARET A.Ş.", "SERGEN GÖRÜROĞLU"),
-        ("ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK", "SERGEN GÖRÜROĞLU"),
-        ("T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
-        ("UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("VARNA DERİ SANAYİ VE TİCARET A.Ş.", "SERGEN GÖRÜROĞLU"),
-        ("VETABİL GIDA TARIM HAYVANCILIK LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("ÖZGÜR ULUS - MARANGOZ", "SERGEN GÖRÜROĞLU"),
-        ("İLK-SEZ ENDÜSTRİYEL OTOMASYON SİSTEMLERİ ELEKTRİK ELEKTRONİK MAKİNA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
-        ("ERKAN DEMİRCAN", "SUAT ARI"),
-        ("NUR ALUÇLUOĞLU - NUR TERZİ", "SUAT ARI"),
-        ("YERLİYURT MARİN DENİZ ARAÇ KAB.TUR.SVE P.LTD.ŞTİ.", "SUAT ARI"),
-        ("ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SUAT ARI")
-    ]
-    df = pd.DataFrame(raw_data, columns=['Müşteri Adı', 'Personel'])
-    df['Clean_Musteri'] = df['Müşteri Adı'].apply(clean_string)
-    return df
-
-firmalar_df = load_firmalar()
-
-# ==========================================
-# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
-# ==========================================
-def smart_read_file(uploaded_file):
-    file_bytes = uploaded_file.getvalue()
-    filename = uploaded_file.name.lower()
-    
-    if filename.endswith(('.xlsx', '.xls')):
-        try:
-            return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
-        except Exception:
-            try:
-                return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
-            except Exception:
-                pass
-
-    encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
-    separators = [';', ',', '\t', None]
-
-    for enc in encodings:
-        for sep in separators:
-            try:
-                engine_type = 'python' if sep is None else None
-                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding=enc, engine=engine_type, on_bad_lines='skip')
-                if df is not None and len(df.columns) > 1 and len(df) > 0:
-                    return df
-            except Exception:
-                continue
-
-    try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
-    except Exception:
-        pass
-
-    try:
-        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
-    except Exception:
-        pass
-
-    raise Exception("Dosya yapısı çözümlenemedi.")
-
-# ==========================================
 # OTOMATİK KURYE FOTOĞRAFI ALMA
 # ==========================================
 def get_courier_photo(courier_name):
@@ -335,10 +186,63 @@ def get_courier_photo(courier_name):
                                     return f"data:{mime_type};base64,{encoded_string}"
                             except Exception:
                                 pass
+
+            for file in files:
+                file_path = os.path.join(target_dir, file)
+                if os.path.isfile(file_path):
+                    ext = os.path.splitext(file)[1].lower().replace('.', '')
+                    if ext in ['png', 'jpg', 'jpeg', 'webp']:
+                        file_name_clean = clean_string(os.path.splitext(file)[0])
+                        if file_name_clean and clean_courier and (file_name_clean in clean_courier or clean_courier in file_name_clean):
+                            try:
+                                with open(file_path, "rb") as image_file:
+                                    encoded_string = base64.b64encode(image_file.read()).decode()
+                                    mime_type = "image/png" if ext == "png" else f"image/{ext}"
+                                    return f"data:{mime_type};base64,{encoded_string}"
+                            except Exception:
+                                pass
         except Exception:
             continue
                     
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
+
+# ==========================================
+# AKILLI VE GELİŞMİŞ DOSYA OKUMA MOTORU
+# ==========================================
+def smart_read_file(uploaded_file):
+    file_bytes = uploaded_file.getvalue()
+    encodings = ['cp1254', 'iso-8859-9', 'utf-8-sig', 'utf-8', 'latin1']
+    separators = [';', ',', '\t', None]
+
+    for enc in encodings:
+        for sep in separators:
+            try:
+                engine_type = 'python' if sep is None else None
+                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding=enc, engine=engine_type, on_bad_lines='skip')
+                if df is not None and len(df.columns) > 1 and len(df) > 0:
+                    return df
+            except Exception:
+                continue
+
+    try:
+        return pd.read_excel(io.BytesIO(file_bytes), engine='openpyxl')
+    except Exception:
+        pass
+
+    try:
+        return pd.read_excel(io.BytesIO(file_bytes), engine='xlrd')
+    except Exception:
+        pass
+
+    for enc in ['utf-8', 'cp1254', 'latin1']:
+        try:
+            dfs = pd.read_html(io.BytesIO(file_bytes), encoding=enc)
+            if dfs and len(dfs) > 0:
+                return dfs[0]
+        except Exception:
+            continue
+
+    raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
 # AT ZİMMET İZLEME VERİ İŞLEME MOTORU
@@ -387,6 +291,7 @@ def process_excel_data(df):
         teslim_df = p_df[p_df["Is_Teslim"] == True]
         teslim_cnt = len(teslim_df)
         teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
+        
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
         
         sms_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "SMS"])
@@ -431,6 +336,7 @@ def process_personnel_account_data(df):
     df = df.drop(columns=cols_to_drop, errors='ignore')
 
     p_col, ft_col, odeme_col, banka_col = None, None, None, None
+
     for col in df.columns:
         c_upper = str(col).upper()
         if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
@@ -452,6 +358,7 @@ def process_personnel_account_data(df):
     for _, row in df.iterrows():
         raw_p_name = str(row[p_col]).strip() if p_col else ""
         c_p_name = clean_string(raw_p_name)
+        
         if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
             continue
             
@@ -468,10 +375,16 @@ def process_personnel_account_data(df):
         })
 
     temp_df = pd.DataFrame(parsed_rows)
+
     priority_list = [
-        "HATİCE KÜBRA IŞIK", "ALATTİN CEBECİ", "BURCU DÜREN",
-        "AHMET BERKAN ÖKSÜZ", "HASAN SAĞLAM", "MEHMET KAYMAZ",
-        "SUAT ARI", "SERGEN GÖRÜROĞLU"
+        "HATİCE KÜBRA IŞIK",
+        "ALATTİN CEBECİ",
+        "BURCU DÜREN",
+        "AHMET BERKAN ÖKSÜZ",
+        "HASAN SAĞLAM",
+        "MEHMET KAYMAZ",
+        "SUAT ARI",
+        "SERGEN GÖRÜROĞLU"
     ]
 
     final_rows = []
@@ -480,6 +393,7 @@ def process_personnel_account_data(df):
     for fixed_name in priority_list:
         clean_fixed = clean_string(fixed_name)
         matched_row = None
+        
         if not temp_df.empty:
             exact_match = temp_df[temp_df["Clean_Name"] == clean_fixed]
             if not exact_match.empty:
@@ -520,8 +434,10 @@ def process_personnel_account_data(df):
     result_df = pd.DataFrame(final_rows)
     result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
     result_df["İşlem"] = False
+
     result_df.reset_index(drop=True, inplace=True)
     result_df.index = range(1, len(result_df) + 1)
+
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
@@ -544,8 +460,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # TEK MERKEZİ YÜKLEME BUTONU
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle (Zimmet, Hesap veya F4)", type=['csv', 'xlsx', 'xls', 'html'])
+    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle", type=['csv', 'xlsx', 'xls', 'html'])
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -565,22 +480,16 @@ if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
         st.session_state.raw_df = raw_df
-        cols_str = " ".join([str(c).upper() for c in raw_df.columns])
         
-        # 1. AT Zimmet Dosyası mı?
+        cols_str = " ".join([str(c).upper() for c in raw_df.columns])
         if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str or "KARGO TESLIMAT KANALI" in cols_str:
             perf_res, _ = process_excel_data(raw_df)
             st.session_state.perf_df = perf_res
             
-        # 2. Personel Hesap Dosyası mı?
-        elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str:
+        elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
-            
-        # 3. F4 Ödeme Listesi mi? (Müşteri ve Borç/Bakiye içerir)
-        else:
-            st.session_state.f4_df = raw_df
             
     except Exception as e:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
@@ -590,6 +499,7 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
+    
     perf_df = st.session_state.perf_df
     if perf_df is not None and not perf_df.empty:
         total_zimmet = perf_df["Zimmet"].sum()
@@ -604,21 +514,41 @@ if st.session_state.active_tab == "Ana Panel":
         c4.metric("🎯 Genel Başarı Oranı", f"%{avg_rate}")
         
         st.markdown("---")
+        
         col_left, col_right = st.columns(2)
+        
         with col_left:
             st.subheader("📊 Kurye Başarı Oranları (%)")
-            fig_bar = px.bar(perf_df, x="Personel", y="Başarı Oranı", color="Başarı Oranı", color_continuous_scale="RdYlGn", text="Başarı Oranı")
+            fig_bar = px.bar(
+                perf_df, 
+                x="Personel", 
+                y="Başarı Oranı", 
+                color="Başarı Oranı",
+                color_continuous_scale="RdYlGn",
+                text="Başarı Oranı"
+            )
             fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
             st.plotly_chart(fig_bar, use_container_width=True)
+            
         with col_right:
             st.subheader("📲 Teslimat Kanalları Dağılımı")
-            channel_totals = {"SMS": perf_df["SMS"].sum(), "İmza": perf_df["İmza"].sum(), "KS-PE": perf_df["KS-PE"].sum()}
-            fig_pie = px.pie(names=list(channel_totals.keys()), values=list(channel_totals.values()), hole=0.5, color_discrete_sequence=['#0D6EFD', '#F57C00', '#2E7D32'])
+            channel_totals = {
+                "SMS": perf_df["SMS"].sum(),
+                "İmza": perf_df["İmza"].sum(),
+                "KS-PE": perf_df["KS-PE"].sum()
+            }
+            fig_pie = px.pie(
+                names=list(channel_totals.keys()),
+                values=list(channel_totals.values()),
+                hole=0.5,
+                color_discrete_sequence=['#0D6EFD', '#F57C00', '#2E7D32']
+            )
             fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
             st.plotly_chart(fig_pie, use_container_width=True)
             
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
+        
     else:
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyerek ana paneli görüntüleyebilirsiniz.")
 
@@ -627,8 +557,11 @@ if st.session_state.active_tab == "Ana Panel":
 # ==========================================
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
+    
     perf_df = st.session_state.perf_df
     if perf_df is not None and not perf_df.empty:
+        st.success(f"✅ AT ZİMMET İZLEME raporu aktif. Toplam **{len(perf_df)}** kurye bulundu.")
+        
         for idx, row in perf_df.iterrows():
             p_name = row["Personel"]
             zimmet = row["Zimmet"]
@@ -638,6 +571,7 @@ elif st.session_state.active_tab == "Kurye Performans":
             sms = row["SMS"]
             imza = row["İmza"]
             ks_pe = row["KS-PE"]
+
             avatar_url = get_courier_photo(p_name)
 
             card_html = f"""
@@ -650,10 +584,22 @@ elif st.session_state.active_tab == "Kurye Performans":
                             <small style="color: #F57C00;">Saha Kuryesi</small>
                         </div>
                     </div>
-                    <div style="text-align: center;"><div class="metric-title">Zimmet Sayısı</div><div class="metric-value" style="color: #FFFFFF;">{zimmet}</div></div>
-                    <div style="text-align: center;"><div class="metric-title">Teslim Edilen</div><div class="metric-value" style="color: #4CAF50;">{teslim}</div></div>
-                    <div style="text-align: center;"><div class="metric-title">Teslim Edilemeyen</div><div class="metric-value" style="color: #F44336;">{devir}</div></div>
-                    <div style="text-align: center; min-width: 80px;"><div class="metric-title">Başarı Oranı</div><div class="metric-value" style="color: #F57C00;">%{rate}</div></div>
+                    <div style="text-align: center;">
+                        <div class="metric-title">Zimmet Sayısı</div>
+                        <div class="metric-value" style="color: #FFFFFF;">{zimmet}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="metric-title">Teslim Edilen</div>
+                        <div class="metric-value" style="color: #4CAF50;">{teslim}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="metric-title">Teslim Edilemeyen</div>
+                        <div class="metric-value" style="color: #F44336;">{devir}</div>
+                    </div>
+                    <div style="text-align: center; min-width: 80px;">
+                        <div class="metric-title">Başarı Oranı</div>
+                        <div class="metric-value" style="color: #F57C00;">%{rate}</div>
+                    </div>
                 </div>
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
                     <div class="channel-badge">📲 SMS: <span class="badge-val">{sms}</span></div>
@@ -663,20 +609,25 @@ elif st.session_state.active_tab == "Kurye Performans":
             </div>
             """
             st.markdown(card_html, unsafe_allow_html=True)
+
     else:
-        st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden AT ZİMMET İZLEME dosyasını yükleyin.")
+        st.warning("⚠️ Kurye performans kartlarını görmek için sol menüden **AT ZİMMET İZLEME** dosyasını yükleyin.")
 
 # ==========================================
 # TAB 3: HESAP
 # ==========================================
 elif st.session_state.active_tab == "HESAP":
     st.title("📋 Günlük Personel Hesap Takip Tablosu")
+    st.caption("✍️ Değerleri değiştirdiğinizde **Hesap** alanı canlı olarak güncellenir.")
+
     account_df = st.session_state.account_df
+
     if account_df is not None:
         if st.sidebar.button("🔄 Tabloyu Sıfırla"):
             st.session_state.hesap_df = account_df.copy()
             
         current_df = st.session_state.hesap_df.copy()
+
         def highlight_rows(row):
             if row.get('İşlem', False):
                 return ['background-color: rgba(46, 125, 50, 0.4); color: #ffffff; font-weight: bold;'] * len(row)
@@ -692,7 +643,10 @@ elif st.session_state.active_tab == "HESAP":
                 "Hesap": st.column_config.NumberColumn("Hesap", format="%.2f ₺", disabled=True),
                 "İşlem": st.column_config.CheckboxColumn("İşlem (Tamamlandı)", default=False)
             },
-            disabled=["Hesap"], hide_index=False, use_container_width=True, num_rows="fixed"
+            disabled=["Hesap"],
+            hide_index=False,
+            use_container_width=True,
+            num_rows="fixed"
         )
 
         edited_df = pd.DataFrame(edited_output)
@@ -705,10 +659,13 @@ elif st.session_state.active_tab == "HESAP":
         st.markdown("<div class='kasa-box'>", unsafe_allow_html=True)
         st.subheader("💵 Genel Kasa ve Hesap Dengesi")
         toplam_hesap = float(edited_df["Hesap"].sum())
+
         col1, col2, col3 = st.columns(3)
         col1.metric("📊 Toplam Hesap", f"{toplam_hesap:,.2f} ₺")
+
         kasa_val = col2.number_input("🏦 KASA (Manuel Giriniz)", value=float(st.session_state.kasa_miktari), step=100.0, format="%.2f")
         st.session_state.kasa_miktari = kasa_val
+
         kasa_fark = toplam_hesap - kasa_val
         if kasa_val > toplam_hesap:
             col3.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta="Durum: AÇIK", delta_color="inverse")
@@ -716,103 +673,19 @@ elif st.session_state.active_tab == "HESAP":
             col3.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta="Durum: TAM", delta_color="normal")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.info("💡 Lütfen sol taraftan PERSONEL HESAP ALIMI Ekrani dosyanızı yükleyin.")
+        st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
 
 # ==========================================
 # TAB 4: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.write("Sol menüden yüklenen **F4 ÖDEME LİSTESİ**, sistemdeki müşteri ve personel eşleşmeleriyle otomatik olarak karşılaştırılır.")
+    st.title("📋 F4 Ödeme Listesi")
     
-    st.info(f"Sistemde kayıtlı toplam firma/müşteri eşleşme sayısı: **{len(firmalar_df)}**")
-    
-    if st.session_state.f4_df is not None:
-        f4_raw = st.session_state.f4_df.copy()
-        f4_raw.columns = [str(c).strip() for c in f4_raw.columns]
-        
-        # Müşteri ve Borç sütunlarını akıllıca tespit et
-        musteri_col_f4 = None
-        borc_col_f4 = None
-        
-        for col in f4_raw.columns:
-            c_low = col.lower()
-            if ('müşteri' in c_low or 'firma' in c_low or 'unvan' in c_low or 'ad' in c_low) and not musteri_col_f4:
-                musteri_col_f4 = col
-            if ('borç' in c_low or 'bakiye' in c_low or 'tutar' in c_low or 'tahsilat' in c_low) and not borc_col_f4:
-                borc_col_f4 = col
-                
-        if not musteri_col_f4:
-            musteri_col_f4 = f4_raw.columns[0]
-        if not borc_col_f4 and len(f4_raw.columns) > 1:
-            borc_col_f4 = f4_raw.columns[1]
-
-        # Temiz eşleştirme anahtarı
-        f4_raw['Clean_F4_Musteri'] = f4_raw[musteri_col_f4].apply(clean_string)
-        
-        # Müşteri Adı üzerinden birleştir
-        merged_f4 = pd.merge(
-            f4_raw, 
-            firmalar_df[['Müşteri Adı', 'Personel', 'Clean_Musteri']], 
-            how='inner', 
-            left_on='Clean_F4_Musteri', 
-            right_on='Clean_Musteri'
-        )
-        
-        eslesen_sayisi = len(merged_f4)
-        st.success(f"✅ F4 dosyasından sistemdeki FİRMALAR listesiyle örtüşen toplam **{eslesen_sayisi}** müşteri eşleştirildi.")
-        
-        if eslesen_sayisi > 0:
-            personeller = sorted([p for p in firmalar_df['Personel'].dropna().unique()])
-            
-            if personeller:
-                st.markdown("---")
-                # Üst Panelden Personel Seçimi
-                secilen_personel = st.selectbox("👤 Üst Panel - Personel Seçimi", options=personeller)
-                
-                # Seçilen personele göre filtrele
-                filt_df = merged_f4[merged_f4['Personel'] == secilen_personel].copy()
-                
-                st.markdown(f"### 📋 {secilen_personel} İçin Müşteri Tahsilat Listesi")
-                
-                if not filt_df.empty:
-                    # İstediğiniz 3 sütun: Müşteri Adı, Fatura Borcu, Açıklama (Boş)
-                    final_display_df = pd.DataFrame()
-                    final_display_df["Müşteri Adı"] = filt_df['Müşteri Adı']
-                    
-                    # Fatura Borcu formatlama
-                    if borc_col_f4 in filt_df.columns:
-                        final_display_df["Fatura Borcu"] = pd.to_numeric(
-                            filt_df[borc_col_f4].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), 
-                            errors='coerce'
-                        ).fillna(0.0)
-                    else:
-                        final_display_df["Fatura Borcu"] = 0.0
-                        
-                    # Açıklama sütunu tamamen boş
-                    final_display_df["Açıklama"] = ""
-                    
-                    final_display_df.reset_index(drop=True, inplace=True)
-                    final_display_df.index = range(1, len(final_display_df) + 1)
-                    
-                    # Tabloyu göster
-                    st.dataframe(final_display_df, use_container_width=True)
-                    
-                    # Toplam Borç Metriği
-                    toplam_borc = final_display_df["Fatura Borcu"].sum()
-                    st.metric(label=f"{secilen_personel} Toplam Fatura Borcu", value=f"{toplam_borc:,.2f} ₺")
-                    
-                    # İndirme Butonu
-                    csv_bytes = final_display_df.to_csv(index=False, encoding='cp1254').encode('cp1254')
-                    st.download_button(
-                        label=f"📥 {secilen_personel} Listesini İndir (CSV)",
-                        data=csv_bytes,
-                        file_name=f"{secilen_personel}_f4_tahsilat_listesi.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.warning(f"Seçilen personel ({secilen_personel}) için F4 dosyasında örtüşen müşteri kaydı bulunamadı.")
-        else:
-            st.error("⚠️ F4 dosyasındaki müşteri adları ile sistemdeki müşteri adları örtüşmedi. Lütfen sol menüden doğru F4 dosyasını yüklediğinizden emin olun.")
+    raw_df = st.session_state.raw_df
+    if raw_df is not None:
+        st.info("ℹ️ Yüklenen F4 Ödeme Listesi / Rapor verileri:")
+        raw_display = raw_df.copy()
+        raw_display.index = range(1, len(raw_display) + 1)
+        st.dataframe(raw_display, use_container_width=True)
     else:
-        st.info("💡 F4 Ödeme listesi analizi için lütfen sol menüdeki **Rapor / Liste Yükle** alanından F4 dosyanızı yükleyin.")
+        st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili dosyanızı yükleyin.")
