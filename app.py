@@ -162,21 +162,108 @@ def parse_turkish_float(val):
         return 0.0
 
 # ==========================================
-# FİRMALAR.CSV OTOMATİK YÜKLEME
+# FİRMALAR.CSV VEYA DAHİLİ LİSTE YÜKLEME
 # ==========================================
 @st.cache_data
 def load_firmalar():
-    if os.path.exists('FİRMALAR.CSV'):
-        try:
-            df = pd.read_csv('FİRMALAR.CSV', encoding='cp1254', sep=';')
-            df.columns = [str(c).strip() for c in df.columns]
-            if 'Müşteri Adı' in df.columns and 'Personel' in df.columns:
-                sub = df[['Müşteri Adı', 'Personel']].dropna(subset=['Müşteri Adı']).copy()
-                sub['Clean_Musteri'] = sub['Müşteri Adı'].apply(clean_string)
-                return sub
-        except Exception:
-            pass
-    return pd.DataFrame(columns=['Müşteri Adı', 'Personel', 'Clean_Musteri'])
+    # Doğrudan verdiğiniz müşteri ve personel verilerini dahili olarak tanımlıyoruz
+    raw_data = [
+        ("KÜBRA AYDEMİR", "AHMET BERKAN ÖKSÜZ"),
+        ("SERKAN KUYUMCU", "AHMET BERKAN ÖKSÜZ"),
+        ("ACH DIŞ TİCARET SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("AKEL DERİ TEKS.SAN.VE DIŞ TİC.LTD.ŞTİ.", "ALATTİN CEBECİ"),
+        ("AKSUN AĞAÇ AMBALAJ KERESTE SAN. TİC.LTD.ŞTİ", "ALATTİN CEBECİ"),
+        ("ARTEA DIŞ TİCARET MAKİNA SANAYİ LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("AYDEMİR DERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("BAYAGRO TARIM İLAÇLARI SANAYİ VE TİCARETLTD. ŞTİ.", "ALATTİN CEBECİ"),
+        ("BEREKET İLAÇ KOZMETİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("BURMOD TEKSTİL SAN.TİC.A.Ş.-BURSA ŞB.", "ALATTİN CEBECİ"),
+        ("BURSA DERİ İHTİSAS VE KARMA ORGANİZE SANAYİ BÖLGESİ", "ALATTİN CEBECİ"),
+        ("BURSA JELATİN GIDA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("CİVAN GERİ DÖNÜŞÜM İZOLASYON PLASTİK METAL,İNŞAAT TAAH.SAN.VE TİC.LTD.ŞTİ.", "ALATTİN CEBECİ"),
+        ("DEMİRCİOĞLU ŞASE ENDÜSTRİYEL YAĞ OTOMOTİV TEKSTİL GIDA İNŞAAT SANAYİ VE TİCARET A.Ş.", "ALATTİN CEBECİ"),
+        ("EDDA MAKİNE AMBALAJ NAKLİYE İNŞAAT KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("EMRE DERELİ - DERELİ MARİNE", "ALATTİN CEBECİ"),
+        ("ERBA FİNİSAJ DERİ SANAYİ VE TİCARET LTD.ŞTİ.", "ALATTİN CEBECİ"),
+        ("FLY MOBİLYA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("GESU ARITMA SİSTEMLERİ SANAYİ VE TİCARET LTD.ŞTİ.", "ALATTİN CEBECİ"),
+        ("KOLİSAN AMBALAJ SANAYİ VE TİCARET A.Ş.", "ALATTİN CEBECİ"),
+        ("LAS-SAN LASTİK PLASTİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("M-BEND METAL ÇELİK MAKİNA İNŞAAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("MAVİFORM METAL KALIPFİKSTÜR VE APARAT SAN.VE TİC.LTD", "ALATTİN CEBECİ"),
+        ("MECANICA CNC MAKİNE VE SERVİS LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("MERZE MOBİLYA TASARIM İNŞAAT SANAYİ TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("MET-RİN DERİ MAKİNELERİ VE METAL SANAYİ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("MNC BİTKİSEL VE SAĞLIK ÜRÜNLERİ REKLAM VE ORGANİZASYON BİLİŞİM TEKNOLOJİLERİ İNŞAAT SAN.TİC.LTD.ŞTİ.", "ALATTİN CEBECİ"),
+        ("MORKİM KİMYA İNŞAAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("MURSİMAR FİBERGLASS VE DENİZ ARAÇLARI TURİZM SANAYİ TİCARET PAZARLAMA LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("NOVMA KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("SOMBURSA BAĞLANTI ELEMANLARI TİCARET VESAN.VE A.Ş.", "ALATTİN CEBECİ"),
+        ("VAKETA DERİCİLİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("YILDIZ GRUBU DERİ KİMYA İNŞAAT TARIM SANAYİ VE DIŞ TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("ÖZBEYAZ DIŞ TİCARET TAŞIMACILIK ANONİM ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("İDEA ENDÜSTRİYEL KİMYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("İNVENTA GIDA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "ALATTİN CEBECİ"),
+        ("ALTINSOY MADENCİLİKVE TİCARET A.Ş.", "CELAL ŞENOL"),
+        ("ENDER DURSAK", "CELAL ŞENOL"),
+        ("KAPLANLAR SOĞUTMA SAN.VE TİC.AŞ.", "CELAL ŞENOL"),
+        ("NARVİN TEKSTİL EMLAK KOZMETİK SOSYAL MEDYA İHRACAT İTHALAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "CELAL ŞENOL"),
+        ("SELFİE TARIMSAL TEDARİK SERACILIK DEPOCULUK DANIŞMANLIK SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "CELAL ŞENOL"),
+        ("SERGEN GÖRÜROĞLU", "CELAL ŞENOL"),
+        ("ARMENDUS OPERATÖR KOL VE PANO SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
+        ("BAROMAK MAKİNE SANAYİ TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
+        ("BİLEKLER İNŞAAT MAKİNALARI SANAYİ VETİCARET LTD.ŞTİ.", "HASAN SAĞLAM"),
+        ("BURKON MOBİLYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
+        ("DICHERSEAL ELASTOMER TEKNOLOJİLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
+        ("DİGİTORİUM ELEKTRONİK TEKNOLOJİLERİ ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
+        ("ELECTRA KABLOSİSTEMLERİ SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
+        ("ELECTRA GRUP MÜHENDİSLİK ELEKTRİK TAAHHÜT MEKANİK PANO İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
+        ("ELECTRA PROJE ELEKTRİK MÜHENDİSLİK TAAHHÜT İNŞAAT ARAÇ KİRALAMA İTHALAT İHRACAT VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
+        ("F.S.K.MAKİNE İMALATTAAH.VE GIDA TEKN.SAN.T.LTD.ŞTİ.", "HASAN SAĞLAM"),
+        ("İPM GALVANO YÜZEY KAPLAMA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
+        ("LİGNUM AĞAÇ MAKİNELERİ SANAYİ TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
+        ("TEMPOLİFT ASANSÖR ELEKTRİK ELEKTRONİK SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "HASAN SAĞLAM"),
+        ("TURKAUTO MOTORLU ARAÇLAR SANAYİ VE TİCARET LİMİTED ŞİRKETİ.", "HASAN SAĞLAM"),
+        ("VİYA OTOMOTİV CAM TURİZM DENİZCİLİK SANAYİ VE TİCARET LTD. ŞTİ.", "HASAN SAĞLAM"),
+        ("YSL OTOMOTİV YAN SANAYİ VE TİCARET ANONİM ŞİRKETİ", "HASAN SAĞLAM"),
+        ("ÖZGÖZDE OTOMOTİV İNŞAAT İŞ MAKİNALARI PETROL NAKLİYE VE TURİZM HİZMETLERİ SANAYİ TİCARET A.Ş.", "HASAN SAĞLAM"),
+        ("ALPER ŞEN", "SERGEN GÖRÜROĞLU"),
+        ("ALSTOM RAYLI SİSTEM SANAYİ ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("AMPHENOL TURKEY BAĞLANTI ÇÖZÜMLERİ LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("BAŞATLAR ORMAN ÜRÜNLERİ VE AMBALAJ SAN.TİC.LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
+        ("D.K.C TEKNİK KAPLAMA APRE TEKSTİL KONFEKSİYON SERVİS TAŞIMACILIĞI SAN.VE TİC.LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
+        ("DEBSA TASARIM KONFEKSİYON TEKSTİL SANAYİ TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("DEVSAN ENDÜSTRİYEL OTOMASYON MAKİNA SANAYİ VE TİCARET A.Ş.", "SERGEN GÖRÜROĞLU"),
+        ("DOĞANYİĞİTLER ORGANİK GIDA SANAYİ TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("DİLAN YILDIRIM - OLİNA BUTİK", "SERGEN GÖRÜROĞLU"),
+        ("ESAUTOMOTION MEKATRONİK SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("GENÇ GÖZDE TARIM MAKİNALARI SANAYİ VE TİC.LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
+        ("GÜMÜŞ ARSLAN GENEL MAKİNE İMALATI ENERJİ VE ISI SİSTEMLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("HMT MAKİNA SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("JACQUARD FASHİON KONFEKSİYON TEKSTİL SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("KCL LOJİSTİK OTOMOTİV SANAYİ TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("MATAY OTOMOTİV YAN SANAYİ VE TİCARET A .Ş.", "SERGEN GÖRÜROĞLU"),
+        ("MİNTEKS TEKSTİL SAN VE TİC. LTD.ŞTİ. İŞLETME ADI:MİNTEKS", "SERGEN GÖRÜROĞLU"),
+        ("MS MOTION OTOMOTİV ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("NOBEL TEKNİK OTO YANSANAYİ VE TİCARET A.Ş.", "SERGEN GÖRÜROĞLU"),
+        ("ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK", "SERGEN GÖRÜROĞLU"),
+        ("T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.", "SERGEN GÖRÜROĞLU"),
+        ("UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("VARNA DERİ SANAYİ VE TİCARET A.Ş.", "SERGEN GÖRÜROĞLU"),
+        ("VETABİL GIDA TARIM HAYVANCILIK LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("ÖZGÜR ULUS - MARANGOZ", "SERGEN GÖRÜROĞLU"),
+        ("İLK-SEZ ENDÜSTRİYEL OTOMASYON SİSTEMLERİ ELEKTRİK ELEKTRONİK MAKİNA SANAYİ VE TİCARET LİMİTED ŞİRKETİ", "SERGEN GÖRÜROĞLU"),
+        ("ERKAN DEMİRCAN", "SUAT ARI"),
+        ("NUR ALUÇLUOĞLU - NUR TERZİ", "SUAT ARI"),
+        ("YERLİYURT MARİN DENİZ ARAÇ KAB.TUR.SVE P.LTD.ŞTİ.", "SUAT ARI"),
+        ("ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ", "SUAT ARI")
+    ]
+    df = pd.DataFrame(raw_data, columns=['Müşteri Adı', 'Personel'])
+    df['Clean_Musteri'] = df['Müşteri Adı'].apply(clean_string)
+    return df
 
 firmalar_df = load_firmalar()
 
@@ -629,16 +716,16 @@ elif st.session_state.active_tab == "HESAP":
             col3.metric("⚖️ Kasa Farkı Durumu", f"{kasa_fark:,.2f} ₺", delta="Durum: TAM", delta_color="normal")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.info("💡 Lütfen sol taraftan PERSONEL HESAP ALIMI EKRANI dosyanızı yükleyin.")
+        st.info("💡 Lütfen sol taraftan PERSONEL HESAP ALIMI Ekrani dosyanızı yükleyin.")
 
 # ==========================================
 # TAB 4: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.write("Sol menüden yüklenen **F4 ÖDEME LİSTESİ**, sistemdeki `FİRMALAR.CSV` müşteri ve personel bilgileriyle otomatik olarak karşılaştırılır.")
+    st.write("Sol menüden yüklenen **F4 ÖDEME LİSTESİ**, sistemdeki müşteri ve personel eşleşmeleriyle otomatik olarak karşılaştırılır.")
     
-    st.info(f"Sistemde kayıtlı toplam firma/müşteri eşleşme sayısı (`FİRMALAR.CSV`): **{len(firmalar_df)}**")
+    st.info(f"Sistemde kayıtlı toplam firma/müşteri eşleşme sayısı: **{len(firmalar_df)}**")
     
     if st.session_state.f4_df is not None:
         f4_raw = st.session_state.f4_df.copy()
@@ -663,7 +750,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         # Temiz eşleştirme anahtarı
         f4_raw['Clean_F4_Musteri'] = f4_raw[musteri_col_f4].apply(clean_string)
         
-        # FİRMALAR.CSV ile Müşteri Adı üzerinden birleştir
+        # Müşteri Adı üzerinden birleştir
         merged_f4 = pd.merge(
             f4_raw, 
             firmalar_df[['Müşteri Adı', 'Personel', 'Clean_Musteri']], 
@@ -726,6 +813,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 else:
                     st.warning(f"Seçilen personel ({secilen_personel}) için F4 dosyasında örtüşen müşteri kaydı bulunamadı.")
         else:
-            st.error("⚠️ F4 dosyasındaki müşteri adları ile FİRMALAR.CSV içerisindeki müşteri adları örtüşmedi. Lütfen sol menüden doğru F4 dosyasını yüklediğinizden emin olun.")
+            st.error("⚠️ F4 dosyasındaki müşteri adları ile sistemdeki müşteri adları örtüşmedi. Lütfen sol menüden doğru F4 dosyasını yüklediğinizden emin olun.")
     else:
         st.info("💡 F4 Ödeme listesi analizi için lütfen sol menüdeki **Rapor / Liste Yükle** alanından F4 dosyanızı yükleyin.")
