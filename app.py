@@ -443,7 +443,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (GÜNCELLENDİ)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -465,7 +465,6 @@ def process_f4_payment_data(df):
 
     processed_rows = []
     for _, row in df.iterrows():
-        # Gerçek müşteri unvanı açıklama sütununda yer aldığı için oradan alıyoruz
         m_adi = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
         if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
             m_adi = str(row[musteri_col]).strip() if musteri_col else ""
@@ -607,7 +606,7 @@ if st.session_state.active_tab == "Ana Panel":
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyerek ana paneli görüntüleyebilirsiniz.")
 
 # ==========================================
-# TAB 2: KURYE PERFORMANS PANELİ
+# TAB 2: KURYE PERFORMANS PANELİ (PERSONEL SÜZGECİ EKLENDİ)
 # ==========================================
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
@@ -616,7 +615,16 @@ elif st.session_state.active_tab == "Kurye Performans":
     if perf_df is not None and not perf_df.empty:
         st.success(f"✅ AT ZİMMET İZLEME raporu aktif. Toplam **{len(perf_df)}** kurye bulundu.")
         
-        for idx, row in perf_df.iterrows():
+        # Personel Süzgeci (Filtreleme) Alanı
+        all_personnel = ["Tümü"] + sorted(perf_df["Personel"].dropna().unique().tolist())
+        selected_personnel = st.selectbox("🔍 Personel Seçerek Süzgeçle:", all_personnel)
+        
+        if selected_personnel != "Tümü":
+            filtered_perf_df = perf_df[perf_df["Personel"] == selected_personnel]
+        else:
+            filtered_perf_df = perf_df
+            
+        for idx, row in filtered_perf_df.iterrows():
             p_name = row["Personel"]
             zimmet = row["Zimmet"]
             teslim = row["Teslim Edilen"]
