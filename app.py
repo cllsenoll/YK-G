@@ -26,10 +26,10 @@ if 'kasa_miktari' not in st.session_state:
     st.session_state.kasa_miktari = 0.0
 if 'perf_df' not in st.session_state:
     st.session_state.perf_df = None
+if 'f4_df' not in st.session_state:
+    st.session_state.f4_df = None
 if 'raw_df' not in st.session_state:
     st.session_state.raw_df = None
-if 'f4_uploaded_df' not in st.session_state:
-    st.session_state.f4_uploaded_df = None
 
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
@@ -162,7 +162,7 @@ def parse_turkish_float(val):
         return 0.0
 
 # ==========================================
-# FİRMALAR.CSV OTOMATİK YÜKLEME VE EŞLEŞTİRME
+# FİRMALAR.CSV OTOMATİK YÜKLEME
 # ==========================================
 @st.cache_data
 def load_firmalar():
@@ -457,7 +457,8 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle (Zimmet veya Hesap)", type=['csv', 'xlsx', 'xls', 'html'])
+    # TEK MERKEZİ YÜKLEME BUTONU
+    uploaded_file = st.file_uploader("📂 Rapor / Liste Yükle (Zimmet, Hesap veya F4)", type=['csv', 'xlsx', 'xls', 'html'])
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
@@ -477,16 +478,22 @@ if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
         st.session_state.raw_df = raw_df
-        
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
+        
+        # 1. AT Zimmet Dosyası mı?
         if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str or "KARGO TESLIMAT KANALI" in cols_str:
             perf_res, _ = process_excel_data(raw_df)
             st.session_state.perf_df = perf_res
             
-        elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
+        # 2. Personel Hesap Dosyası mı?
+        elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
+            
+        # 3. F4 Ödeme Listesi mi? (Müşteri ve Borç/Bakiye içerir)
+        else:
+            st.session_state.f4_df = raw_df
             
     except Exception as e:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
@@ -496,7 +503,6 @@ if uploaded_file is not None:
 # ==========================================
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
-    
     perf_df = st.session_state.perf_df
     if perf_df is not None and not perf_df.empty:
         total_zimmet = perf_df["Zimmet"].sum()
@@ -512,13 +518,11 @@ if st.session_state.active_tab == "Ana Panel":
         
         st.markdown("---")
         col_left, col_right = st.columns(2)
-        
         with col_left:
             st.subheader("📊 Kurye Başarı Oranları (%)")
             fig_bar = px.bar(perf_df, x="Personel", y="Başarı Oranı", color="Başarı Oranı", color_continuous_scale="RdYlGn", text="Başarı Oranı")
             fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
             st.plotly_chart(fig_bar, use_container_width=True)
-            
         with col_right:
             st.subheader("📲 Teslimat Kanalları Dağılımı")
             channel_totals = {"SMS": perf_df["SMS"].sum(), "İmza": perf_df["İmza"].sum(), "KS-PE": perf_df["KS-PE"].sum()}
@@ -628,99 +632,100 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan PERSONEL HESAP ALIMI EKRANI dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 4: F4 ÖDEME LİSTESİ (İSTEDİĞİNİZ TAM ÖZELLİK)
+# TAB 4: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.write("F4 Ödeme dosyanızı yükleyin; sistem **FİRMALAR.CSV** verileriyle otomatik eşleştirsin ve seçtiğiniz personele göre anında süzsün.")
+    st.write("Sol menüden yüklenen **F4 ÖDEME LİSTESİ**, sistemdeki `FİRMALAR.CSV` müşteri ve personel bilgileriyle otomatik olarak karşılaştırılır.")
     
     st.info(f"Sistemde kayıtlı toplam firma/müşteri eşleşme sayısı (`FİRMALAR.CSV`): **{len(firmalar_df)}**")
     
-    # Doğrudan bu sekme içerisinde F4 dosya yükleme alanı
-    uploaded_f4 = st.file_uploader("📂 F4 ÖDEME adlı Excel veya CSV dosyanızı yükleyin", type=["csv", "xlsx", "xls"], key="f4_tab_uploader")
-    
-    if uploaded_f4 is not None:
-        try:
-            f4_df = smart_read_file(uploaded_f4)
-            f4_df.columns = [str(c).strip() for c in f4_df.columns]
-            st.session_state.f4_uploaded_df = f4_df
-            st.success("✅ F4 Ödeme dosyası başarıyla yüklendi ve hafızaya alındı!")
-        except Exception as e:
-            st.error(f"❌ Dosya okunurken hata oluştu: {e}")
-
-    if st.session_state.f4_uploaded_df is not None:
-        f4_df = st.session_state.f4_uploaded_df
+    if st.session_state.f4_df is not None:
+        f4_raw = st.session_state.f4_df.copy()
+        f4_raw.columns = [str(c).strip() for c in f4_raw.columns]
         
         # Müşteri ve Borç sütunlarını akıllıca tespit et
-        musteri_kolonu_f4 = None
-        borc_kolonu_f4 = None
+        musteri_col_f4 = None
+        borc_col_f4 = None
         
-        for col in f4_df.columns:
-            col_lower = col.lower()
-            if ('müşteri' in col_lower or 'firma' in col_lower or 'unvan' in col_lower or 'ad' in col_lower) and not musteri_kolonu_f4:
-                musteri_kolonu_f4 = col
-            if ('borç' in col_lower or 'bakiye' in col_lower or 'tutar' in col_lower or 'tahsilat' in col_lower) and not borc_kolonu_f4:
-                borc_kolonu_f4 = col
+        for col in f4_raw.columns:
+            c_low = col.lower()
+            if ('müşteri' in c_low or 'firma' in c_low or 'unvan' in c_low or 'ad' in c_low) and not musteri_col_f4:
+                musteri_col_f4 = col
+            if ('borç' in c_low or 'bakiye' in c_low or 'tutar' in c_low or 'tahsilat' in c_low) and not borc_col_f4:
+                borc_col_f4 = col
                 
-        if not musteri_kolonu_f4:
-            musteri_kolonu_f4 = f4_df.columns[0]
-        if not borc_kolonu_f4 and len(f4_df.columns) > 1:
-            borc_kolonu_f4 = f4_df.columns[1]
+        if not musteri_col_f4:
+            musteri_col_f4 = f4_raw.columns[0]
+        if not borc_col_f4 and len(f4_raw.columns) > 1:
+            borc_col_f4 = f4_raw.columns[1]
 
-        # Temiz eşleştirme anahtarı oluştur
-        f4_df['Clean_F4_Musteri'] = f4_df[musteri_kolonu_f4].apply(clean_string)
+        # Temiz eşleştirme anahtarı
+        f4_raw['Clean_F4_Musteri'] = f4_raw[musteri_col_f4].apply(clean_string)
         
-        # FİRMALAR ile F4 dosyasını Müşteri Adı üzerinden birleştir (Merge)
-        merged_df = pd.merge(
-            f4_df, 
+        # FİRMALAR.CSV ile Müşteri Adı üzerinden birleştir
+        merged_f4 = pd.merge(
+            f4_raw, 
             firmalar_df[['Müşteri Adı', 'Personel', 'Clean_Musteri']], 
-            how='inner', # Sadece FİRMALAR ile örtüşen müşteriler listelensin
+            how='inner', 
             left_on='Clean_F4_Musteri', 
             right_on='Clean_Musteri'
         )
         
-        eslesen_sayisi = len(merged_df)
-        st.write(f"📊 F4 dosyasındaki kayıtlardan FİRMALAR listesiyle örtüşen toplam **{eslesen_sayisi}** müşteri bulundu.")
+        eslesen_sayisi = len(merged_f4)
+        st.success(f"✅ F4 dosyasından sistemdeki FİRMALAR listesiyle örtüşen toplam **{eslesen_sayisi}** müşteri eşleştirildi.")
         
         if eslesen_sayisi > 0:
-            # Üst Panel: Personel Seçimi (Süzgeç)
             personeller = sorted([p for p in firmalar_df['Personel'].dropna().unique()])
             
             if personeller:
                 st.markdown("---")
-                secilen_personel = st.selectbox("👤 Üst Panel - Personel Seçimi (Otomatik Süzgeç)", options=personeller)
+                # Üst Panelden Personel Seçimi
+                secilen_personel = st.selectbox("👤 Üst Panel - Personel Seçimi", options=personeller)
                 
-                # Seçilen personele göre filtreleme
-                personel_bazli = merged_df[merged_df['Personel'] == secilen_personel].copy()
+                # Seçilen personele göre filtrele
+                filt_df = merged_f4[merged_f4['Personel'] == secilen_personel].copy()
                 
-                st.markdown(f"### 📋 {secilen_personel} İçin Örtüşen Müşteriler ve Fatura Borç Listesi")
+                st.markdown(f"### 📋 {secilen_personel} İçin Müşteri Tahsilat Listesi")
                 
-                if not personel_bazli.empty:
-                    # Temiz görünümlü sütun düzeni
-                    display_cols = [c for c in personel_bazli.columns if c not in ['Clean_F4_Musteri', 'Clean_Musteri']]
-                    st.dataframe(personel_bazli[display_cols], use_container_width=True, hide_index=True)
+                if not filt_df.empty:
+                    # İstediğiniz 3 sütun: Müşteri Adı, Fatura Borcu, Açıklama (Boş)
+                    final_display_df = pd.DataFrame()
+                    final_display_df["Müşteri Adı"] = filt_df['Müşteri Adı']
                     
-                    # Toplam Fatura Borcu / Tahsilat Hedefi Hesaplama
-                    if borc_kolonu_f4 and borc_kolonu_f4 in personel_bazli.columns:
-                        temiz_borc = pd.to_numeric(
-                            personel_bazli[borc_kolonu_f4].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), 
+                    # Fatura Borcu formatlama
+                    if borc_col_f4 in filt_df.columns:
+                        final_display_df["Fatura Borcu"] = pd.to_numeric(
+                            filt_df[borc_col_f4].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), 
                             errors='coerce'
-                        ).fillna(0)
+                        ).fillna(0.0)
+                    else:
+                        final_display_df["Fatura Borcu"] = 0.0
                         
-                        toplam_bakiye = temiz_borc.sum()
-                        st.metric(label=f"{secilen_personel} Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_bakiye:,.2f} ₺")
+                    # Açıklama sütunu tamamen boş
+                    final_display_df["Açıklama"] = ""
+                    
+                    final_display_df.reset_index(drop=True, inplace=True)
+                    final_display_df.index = range(1, len(final_display_df) + 1)
+                    
+                    # Tabloyu göster
+                    st.dataframe(final_display_df, use_container_width=True)
+                    
+                    # Toplam Borç Metriği
+                    toplam_borc = final_display_df["Fatura Borcu"].sum()
+                    st.metric(label=f"{secilen_personel} Toplam Fatura Borcu", value=f"{toplam_borc:,.2f} ₺")
                     
                     # İndirme Butonu
-                    csv_data = personel_bazli[display_cols].to_csv(index=False, encoding='cp1254').encode('cp1254')
+                    csv_bytes = final_display_df.to_csv(index=False, encoding='cp1254').encode('cp1254')
                     st.download_button(
-                        label=f"📥 {secilen_personel} F4 Tahsilat Listesini İndir (CSV)",
-                        data=csv_data,
+                        label=f"📥 {secilen_personel} Listesini İndir (CSV)",
+                        data=csv_bytes,
                         file_name=f"{secilen_personel}_f4_tahsilat_listesi.csv",
                         mime="text/csv"
                     )
                 else:
                     st.warning(f"Seçilen personel ({secilen_personel}) için F4 dosyasında örtüşen müşteri kaydı bulunamadı.")
         else:
-            st.error("⚠️ F4 dosyasındaki müşteri adları ile FİRMALAR.CSV dosyasındaki müşteri adları eşleşmedi. Lütfen F4 dosyasındaki müşteri sütununu kontrol edin.")
+            st.error("⚠️ F4 dosyasındaki müşteri adları ile FİRMALAR.CSV içerisindeki müşteri adları örtüşmedi. Lütfen sol menüden doğru F4 dosyasını yüklediğinizden emin olun.")
     else:
-        st.info("💡 F4 Ödeme analizi ve personel süzgeci için lütfen yukarıdan F4 Ödeme dosyanızı yükleyin.")
+        st.info("💡 F4 Ödeme listesi analizi için lütfen sol menüdeki **Rapor / Liste Yükle** alanından F4 dosyanızı yükleyin.")
