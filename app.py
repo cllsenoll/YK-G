@@ -24,6 +24,10 @@ if 'hesap_df' not in st.session_state:
     st.session_state.hesap_df = None
 if 'kasa_miktari' not in st.session_state:
     st.session_state.kasa_miktari = 0.0
+if 'perf_df' not in st.session_state:
+    st.session_state.perf_df = None
+if 'raw_df' not in st.session_state:
+    st.session_state.raw_df = None
 
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
@@ -199,7 +203,7 @@ def get_courier_photo(courier_name):
                                 pass
         except Exception:
             continue
-                        
+                    
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
@@ -337,7 +341,7 @@ def process_personnel_account_data(df):
         c_upper = str(col).upper()
         if ("PERSONEL" in c_upper or "AD" in c_upper or "KURYE" in c_upper) and not p_col:
             p_col = col
-        elif ("FT" in c_upper or "FATURA" in c_upper) and not ft_col:
+        elif (("FT" in c_upper or "FATURA" in c_upper) and not ("AD" in c_upper or "ADET" in c_upper)) and not ft_col:
             ft_col = col
         elif ("ÖDEME" in c_upper or "ODEME" in c_upper) and not odeme_col:
             odeme_col = col
@@ -472,20 +476,16 @@ with st.sidebar:
 # ==========================================
 # AKILLI VERİ DAĞITIM VE İŞLEME MİMARİSİ
 # ==========================================
-perf_df = None
-missing_columns = None
-raw_df = None
-
 if uploaded_file is not None:
     try:
         raw_df = smart_read_file(uploaded_file)
+        st.session_state.raw_df = raw_df
         
-        # 1. Kontrol: AT Zimmet Raporu mu? (Ana Panel & Kurye Performans için)
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
         if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str or "KARGO TESLIMAT KANALI" in cols_str:
-            perf_df, missing_columns = process_excel_data(raw_df)
+            perf_res, _ = process_excel_data(raw_df)
+            st.session_state.perf_df = perf_res
             
-        # 2. Kontrol: Personel Hesap Alımı Ekranı mı? (HESAP sekmesi için)
         elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
@@ -500,8 +500,7 @@ if uploaded_file is not None:
 if st.session_state.active_tab == "Ana Panel":
     st.title("📊 Görükle Acente - Genel Performans Özeti")
     
-    # Sadece AT Zimmet verisi yüklendiyse burası dolacak
-    # Eğer hesap dosyası yüklendiyse perf_df burada boş kalacak ve doğru bilgilendirme dönecek.
+    perf_df = st.session_state.perf_df
     if perf_df is not None and not perf_df.empty:
         total_zimmet = perf_df["Zimmet"].sum()
         total_teslim = perf_df["Teslim Edilen"].sum()
@@ -559,19 +558,9 @@ if st.session_state.active_tab == "Ana Panel":
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
     
-    # AT Zimmet verisi beklenir
-    # Hesap dosyası yüklendiyse perf_df boş dönecektir
-    # Yeniden hesaplama/okuma yapılması gerekirse diye raw_df kontrolü de ekleyebiliriz:
-    if uploaded_file is not None and perf_df is None:
-        try:
-            temp_p, _ = process_excel_data(raw_df)
-            if temp_p is not None:
-                perf_df = temp_p
-        except:
-            pass
-
+    perf_df = st.session_state.perf_df
     if perf_df is not None and not perf_df.empty:
-        st.success(f"✅ AT ZİMMET İZLEME raporu başarıyla işlendi. Toplam **{len(perf_df)}** kurye bulundu.")
+        st.success(f"✅ AT ZİMMET İZLEME raporu aktif. Toplam **{len(perf_df)}** kurye bulundu.")
         
         for idx, row in perf_df.iterrows():
             p_name = row["Personel"]
@@ -692,8 +681,9 @@ elif st.session_state.active_tab == "HESAP":
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme Listesi")
     
-    if raw_df is not None and st.session_state.account_df is None and perf_df is None:
-        st.info("ℹ️ Yüklenen F4 Ödeme Listesi verileri:")
+    raw_df = st.session_state.raw_df
+    if raw_df is not None:
+        st.info("ℹ️ Yüklenen F4 Ödeme Listesi / Rapor verileri:")
         raw_display = raw_df.copy()
         raw_display.index = range(1, len(raw_display) + 1)
         st.dataframe(raw_display, use_container_width=True)
