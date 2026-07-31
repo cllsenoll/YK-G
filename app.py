@@ -34,6 +34,102 @@ if 'f4_df' not in st.session_state:
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
+# --- MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ ---
+MUSTERI_PERSONEL_MAP = {
+    "KÜBRA AYDEMİR": "AHMET BERKAN ÖKSÜZ",
+    "SERKAN KUYUMCU": "AHMET BERKAN ÖKSÜZ",
+    "ACH DIŞ TİCARET SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "AKEL DERİ TEKS.SAN.VE DIŞ TİC.LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "AKSUN AĞAÇ AMBALAJ KERESTE SAN. TİC.LTD.ŞTİ": "ALATTİN CEBECİ",
+    "ARTEA DIŞ TİCARET MAKİNA SANAYİ LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "AYDEMİR DERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "BAYAGRO TARIM İLAÇLARI SANAYİ VE TİCARETLTD. ŞTİ.": "ALATTİN CEBECİ",
+    "BEREKET İLAÇ KOZMETİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "BURMOD TEKSTİL SAN.TİC.A.Ş.-BURSA ŞB.": "ALATTİN CEBECİ",
+    "BURSA DERİ İHTİSAS VE KARMA ORGANİZE SANAYİ BÖLGESİ": "ALATTİN CEBECİ",
+    "BURSA JELATİN GIDA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "CİVAN GERİ DÖNÜŞÜM İZOLASYON PLASTİK METAL,İNŞAAT TAAH.SAN.VE TİC.LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "DEMİRCİOĞLU ŞASE ENDÜSTRİYEL YAĞ OTOMOTİV TEKSTİL GIDA İNŞAAT SANAYİ VE TİCARET A.Ş.": "ALATTİN CEBECİ",
+    "EDDA MAKİNE AMBALAJ NAKLİYE İNŞAAT KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "EMRE DERELİ - DERELİ MARİNE": "ALATTİN CEBECİ",
+    "ERBA FİNİSAJ DERİ SANAYİ VE TİCARET LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "FLY MOBİLYA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "GESU ARITMA SİSTEMLERİ SANAYİ VE TİCARET LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "KOLİSAN AMBALAJ SANAYİ VE TİCARET A.Ş.": "ALATTİN CEBECİ",
+    "LAS-SAN LASTİK PLASTİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "M-BEND METAL ÇELİK MAKİNA İNŞAAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "MAVİFORM METAL KALIPFİKSTÜR VE APARAT SAN.VE TİC.LTD": "ALATTİN CEBECİ",
+    "MECANICA CNC MAKİNE VE SERVİS LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "MERZE MOBİLYA TASARIM İNŞAAT SANAYİ TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "MET-RİN DERİ MAKİNELERİ VE METAL SANAYİ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "MNC BİTKİSEL VE SAĞLIK ÜRÜNLERİ REKLAM VE ORGANİZASYON BİLİŞİM TEKNOLOJİLERİ İNŞAAT SAN.TİC.LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "MORKİM KİMYA İNŞAAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "MURSAN FİBERGLASS VE DENİZ ARAÇLARI TURİZM SANAYİ TİCARET PAZARLAMA LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "NOVMA KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "SOMBURSA BAĞLANTI ELEMANLARI TİCARET VESAN.VE A.Ş.": "ALATTİN CEBECİ",
+    "VAKETA DERİCİLİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "YILDIZ GRUBU DERİ KİMYA İNŞAAT TARIM SANAYİ VE DIŞ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "ÖZBEYAZ DIŞ TİCARET TAŞIMACILIK ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "İDEA ENDÜSTRİYEL KİMYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "İNVENTA GIDA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "ALTINSOY MADENCİLİKVE TİCARET A.Ş.": "CELAL ŞENOL",
+    "ENDER DURSAK": "CELAL ŞENOL",
+    "KAPLANLAR SOĞUTMA SAN.VE TİC.AŞ.": "CELAL ŞENOL",
+    "NARVİN TEKSTİL EMLAK KOZMETİK SOSYAL MEDYA İHRACAT İTHALAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
+    "SELFİE TARIMSAL TEDARİK SERACILIK DEPOCULUK DANIŞMANLIK SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
+    "SERGEN GÖRÜROĞLU": "CELAL ŞENOL",
+    "ARMENDUS OPERATÖR KOL VE PANO SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "BAROMAK MAKİNE SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "BİLEKLER İNŞAAT MAKİNALARI SANAYİ VETİCARET LTD.ŞTİ.": "HASAN SAĞLAM",
+    "BURKON MOBİLYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "DICHERSEAL ELASTOMER TEKNOLOJİLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "DİGİTORİUM ELEKTRONİK TEKNOLOJİLERİ ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "ELECTRA KABLOSİSTEMLERİ SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "ELECTRA GRUP MÜHENDİSLİK ELEKTRİK TAAHHÜT MEKANİK PANO İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "ELECTRA PROJE ELEKTRİK MÜHENDİSLİK TAAHHÜT İNŞAAT ARAÇ KİRALAMA İTHALAT İHRACAT VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "F.S.K.MAKİNE İMALATTAAH.VE GIDA TEKN.SAN.T.LTD.ŞTİ.": "HASAN SAĞLAM",
+    "IPM GALVANO YÜZEY KAPLAMA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "LİGNUM AĞAÇ MAKİNELERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "TEMPOLİFT ASANSÖR ELEKTRİK ELEKTRONİK SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "TURKAUTO MOTORLU ARAÇLAR SANAYİ VE TİCARET LİMİTED ŞİRKETİ.": "HASAN SAĞLAM",
+    "VİYA OTOMOTİV CAM TURİZM DENİZCİLİK SANAYİ VE TİCARET LTD. ŞTİ.": "HASAN SAĞLAM",
+    "YSL OTOMOTİV YAN SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "ÖZGÖZDE OTOMOTİV İNŞAAT İŞ MAKİNALARI PETROL NAKLİYE VE TURİZM HİZMETLERİ SANAYİ TİCARET A.Ş.": "HASAN SAĞLAM",
+    "ALPER ŞEN": "SERGEN GÖRÜROĞLU",
+    "ALSTOM RAYLI SİSTEM SANAYİ ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "AMPHENOL TURKEY BAĞLANTI ÇÖZÜMLERİ LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "BAŞATLAR ORMAN ÜRÜNLERİ VE AMBALAJ SAN.TİC.LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "D.K.C TEKNİK KAPLAMA APRE TEKSTİL KONFEKSİYON SERVİS TAŞIMACILIĞI SAN.VE TİC.LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "DEBSA TASARIM KONFEKSİYON TEKSTİL SANAYİ TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "DEVSAN ENDÜSTRİYEL OTOMASYON MAKİNA SANAYİ VE TİCARET A.Ş.": "SERGEN GÖRÜROĞLU",
+    "DOĞANYİĞİTLER ORGANİK GIDA SANAYİ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "DİLAN YILDIRIM - OLİNA BUTİK": "SERGEN GÖRÜROĞLU",
+    "ESAUTOMOTION MEKATRONİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "GENÇ GÖZDE TARIM MAKİNALARI SANAYİ VE TİC.LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "GÜMÜŞ ARSLAN GENEL MAKİNE İMALATI ENERJİ VE ISI SİSTEMLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "HMT MAKİNA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "JACQUARD FASHİON KONFEKSİYON TEKSTİL SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "KCL LOJİSTİK OTOMOTİV SANAYİ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "MATAY OTOMOTİV YAN SANAYİ VE TİCARET A .Ş.": "SERGEN GÖRÜROĞLU",
+    "MİNTEKS TEKSTİL SAN VE TİC. LTD.ŞTİ. İŞLETME ADI:MİNTEKS": "SERGEN GÖRÜROĞLU",
+    "MS MOTION OTOMOTİV ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "NOBEL TEKNİK OTO YANSANAYİ VE TİCARET A.Ş.": "SERGEN GÖRÜROĞLU",
+    "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK": "SERGEN GÖRÜROĞLU",
+    "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "SERGEN GÖRÜROĞLU",
+    "VETABİL GIDA TARIM HAYVANCILIK LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "ÖZGÜR ULUS - MARANGOZ": "SERGEN GÖRÜROĞLU",
+    "İLK-SEZ ENDÜSTRİYEL OTOMASYON SİSTEMLERİ ELEKTRİK ELEKTRONİK MAKİNA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "ERKAN DEMİRCAN": "SUAT ARI",
+    "NUR ALUÇLUOĞLU - NUR TERZİ": "SUAT ARI",
+    "YERLİYURT MARİN DENİZ ARAÇ KAB.TUR.SVE P.LTD.ŞTİ.": "SUAT ARI",
+    "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI"
+}
+
 # --- CSS VE TRANSLATE KORUMA KODLARI ---
 custom_css = """
 <style>
@@ -443,7 +539,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (MÜŞTERİ - PERSONEL EŞLEŞTİRMELİ)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -477,10 +573,24 @@ def process_f4_payment_data(df):
         if borc_val == 0.0:
             continue
 
+        # Müşteri eşleşmesinden ilgili personeli bulma (Büyük/küçük harf veya tam eşleşme kontrolü)
+        assigned_personel = "ATANMAMIŞ"
+        m_adi_upper = m_adi.upper()
+        
+        if m_adi_upper in MUSTERI_PERSONEL_MAP:
+            assigned_personel = MUSTERI_PERSONEL_MAP[m_adi_upper]
+        else:
+            # Kısmi/esnek eşleşme kontrolü
+            for k, v in MUSTERI_PERSONEL_MAP.items():
+                if k in m_adi_upper or m_adi_upper in k:
+                    assigned_personel = v
+                    break
+
         processed_rows.append({
             "Müşteri Adı": m_adi,
             "Fatura Borcu": borc_val,
-            "Açıklama": ""
+            "Açıklama": "",
+            "Personel": assigned_personel
         })
 
     res_df = pd.DataFrame(processed_rows)
@@ -606,7 +716,7 @@ if st.session_state.active_tab == "Ana Panel":
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyerek ana paneli görüntüleyebilirsiniz.")
 
 # ==========================================
-# TAB 2: KURYE PERFORMANS PANELİ (PERSONEL SÜZGECİ EKLENDİ)
+# TAB 2: KURYE PERFORMANS PANELİ
 # ==========================================
 elif st.session_state.active_tab == "Kurye Performans":
     st.title("🏃‍♂️ Kurye Performans Paneli")
@@ -615,7 +725,6 @@ elif st.session_state.active_tab == "Kurye Performans":
     if perf_df is not None and not perf_df.empty:
         st.success(f"✅ AT ZİMMET İZLEME raporu aktif. Toplam **{len(perf_df)}** kurye bulundu.")
         
-        # Personel Süzgeci (Filtreleme) Alanı
         all_personnel = ["Tümü"] + sorted(perf_df["Personel"].dropna().unique().tolist())
         selected_personnel = st.selectbox("🔍 Personel Seçerek Süzgeçle:", all_personnel)
         
@@ -738,21 +847,32 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 4: F4 ÖDEME LİSTESİ
+# TAB 4: F4 ÖDEME LİSTESİ (PERSONEL FİLTRELEME DESTEKLİ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme Listesi")
     
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
-        st.success(f"✅ F4 Ödeme Listesi başarıyla oluşturuldu. Fatura borcu sıfırdan farklı **{len(f4_df)}** kayıt listeleniyor.")
+        st.success(f"✅ F4 Ödeme Listesi başarıyla işlendi ve personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_df)}** kayıt listeleniyor.")
+        
+        # Personel bazlı filtreleme seçeneği eklendi
+        unique_personnel = ["Tümü"] + sorted(f4_df["Personel"].dropna().unique().tolist())
+        selected_f4_personel = st.selectbox("🔍 Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter")
+        
+        if selected_f4_personel != "Tümü":
+            display_f4_df = f4_df[f4_df["Personel"] == selected_f4_personel]
+        else:
+            display_f4_df = f4_df
+            
         st.dataframe(
-            f4_df, 
+            display_f4_df, 
             use_container_width=True,
             column_config={
                 "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
                 "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
-                "Açıklama": st.column_config.TextColumn("Açıklama")
+                "Açıklama": st.column_config.TextColumn("Açıklama"),
+                "Personel": st.column_config.TextColumn("Sorumlu Personel")
             }
         )
     else:
@@ -761,14 +881,24 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla oluşturuldu. Fatura borcu sıfırdan farklı **{len(f4_res)}** kayıt listeleniyor.")
+                st.success(f"✅ F4 Ödeme Listesi başarıyla işlendi ve personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_res)}** kayıt listeleniyor.")
+                
+                unique_personnel = ["Tümü"] + sorted(f4_res["Personel"].dropna().unique().tolist())
+                selected_f4_personel = st.selectbox("🔍 Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter_2")
+                
+                if selected_f4_personel != "Tümü":
+                    display_f4_df = f4_res[f4_res["Personel"] == selected_f4_personel]
+                else:
+                    display_f4_df = f4_res
+                    
                 st.dataframe(
-                    f4_res, 
+                    display_f4_df, 
                     use_container_width=True,
                     column_config={
                         "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
                         "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
-                        "Açıklama": st.column_config.TextColumn("Açıklama")
+                        "Açıklama": st.column_config.TextColumn("Açıklama"),
+                        "Personel": st.column_config.TextColumn("Sorumlu Personel")
                     }
                 )
             else:
