@@ -28,6 +28,8 @@ if 'perf_df' not in st.session_state:
     st.session_state.perf_df = None
 if 'raw_df' not in st.session_state:
     st.session_state.raw_df = None
+if 'f4_df' not in st.session_state:
+    st.session_state.f4_df = None
 
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
@@ -203,7 +205,7 @@ def get_courier_photo(courier_name):
                                 pass
         except Exception:
             continue
-                    
+                
     return f"https://ui-avatars.com/api/?name={courier_name.replace(' ', '+')}&background=0B172E&color=F57C00&bold=true&size=80"
 
 # ==========================================
@@ -441,6 +443,54 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU
+# ==========================================
+def process_f4_payment_data(df):
+    df.columns = df.columns.astype(str).str.strip()
+    
+    # Sütunları esnek bulma
+    musteri_col, borc_col, aciklama_col = None, None, None
+    for col in df.columns:
+        c_upper = str(col).upper()
+        if ("MÜŞTERİ" in c_upper or "MUSTERI" in c_upper or "FIRMA" in c_upper or "UNVAN" in c_upper) and not musteri_col:
+            musteri_col = col
+        elif ("BORÇ" in c_upper or "BORC" in c_upper or "BAKİYE" in c_upper or "BAKIYE" in c_upper or "TUTAR" in c_upper) and not borc_col:
+            borc_col = col
+        elif "AÇIKLAMA" in c_upper or "ACIKLAMA" in c_upper:
+            aciklama_col = col
+
+    cols_list = list(df.columns)
+    if not musteri_col and len(cols_list) > 0: musteri_col = cols_list[0]
+    if not borc_col and len(cols_list) > 1: borc_col = cols_list[1]
+    if not aciklama_col and len(cols_list) > 2: aciklama_col = cols_list[2]
+
+    processed_rows = []
+    for _, row in df.iterrows():
+        m_adi = str(row[musteri_col]).strip() if musteri_col else ""
+        if not m_adi or m_adi.upper() in ["NAN", "NONE", "TOPLAM", "TOTAL"]:
+            continue
+            
+        borc_val = parse_turkish_float(row[borc_col]) if borc_col else 0.0
+        
+        # Fatura Borcu 0 olanları ele
+        if borc_val == 0.0:
+            continue
+            
+        aciklama_val = str(row[aciklama_col]).strip() if aciklama_col and not pd.isna(row[aciklama_col]) else ""
+
+        processed_rows.append({
+            "Müşteri Adı": m_adi,
+            "Fatura Borcu": borc_val,
+            "Açıklama": aciklama_val
+        })
+
+    res_df = pd.DataFrame(processed_rows)
+    if not res_df.empty:
+        res_df.reset_index(drop=True, inplace=True)
+        res_df.index = range(1, len(res_df) + 1)
+    return res_df
+
+# ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
 # ==========================================
 with st.sidebar:
@@ -490,6 +540,11 @@ if uploaded_file is not None:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
+            
+        # F4 Ödeme Listesi için kontrol ve işleme
+        if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
+            f4_res = process_f4_payment_data(raw_df)
+            st.session_state.f4_df = f4_res
             
     except Exception as e:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
@@ -681,11 +736,35 @@ elif st.session_state.active_tab == "HESAP":
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme Listesi")
     
-    raw_df = st.session_state.raw_df
-    if raw_df is not None:
-        st.info("ℹ️ Yüklenen F4 Ödeme Listesi / Rapor verileri:")
-        raw_display = raw_df.copy()
-        raw_display.index = range(1, len(raw_display) + 1)
-        st.dataframe(raw_display, use_container_width=True)
+    f4_df = st.session_state.f4_df
+    if f4_df is not None and not f4_df.empty:
+        st.success(f"✅ F4 Ödeme Listesi başarıyla oluşturuldu. Fatura borcu sıfırdan farklı **{len(f4_df)}** kayıt listeleniyor.")
+        st.dataframe(
+            f4_df, 
+            use_container_width=True,
+            column_config={
+                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
+                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
+                "Açıklama": st.column_config.TextColumn("Açıklama")
+            }
+        )
     else:
-        st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili dosyanızı yükleyin.")
+        raw_df = st.session_state.raw_df
+        if raw_df is not None:
+            f4_res = process_f4_payment_data(raw_df)
+            st.session_state.f4_df = f4_res
+            if f4_res is not None and not f4_res.empty:
+                st.success(f"✅ F4 Ödeme Listesi başarıyla oluşturuldu. Fatura borcu sıfırdan farklı **{len(f4_res)}** kayıt listeleniyor.")
+                st.dataframe(
+                    f4_res, 
+                    use_container_width=True,
+                    column_config={
+                        "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
+                        "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
+                        "Açıklama": st.column_config.TextColumn("Açıklama")
+                    }
+                )
+            else:
+                st.warning("⚠️ Yüklenen dosya içerisinde F4 ödeme kriterlerine uygun (borcu sıfırdan büyük) veri bulunamadı.")
+        else:
+            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili dosyanızı yükleyin.")
