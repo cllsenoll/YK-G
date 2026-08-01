@@ -1,11 +1,14 @@
-import streamlit as st
+# Let's write and test the complete updated python code for app_entegre.py
+code_content = '''import streamlit as st
 import pandas as pd
 import os
 from io import BytesIO
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 st.set_page_config(page_title="Görükle Şube Operasyon & Tahsilat Paneli", layout="wide")
 
@@ -101,6 +104,7 @@ elif secim == "F4 ÖDEME LİSTESİ":
                     toplam_bakiye = temiz_borc.sum()
                     st.metric(label=f"{secilen_personel} Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_bakiye:,.2f} TL")
                 
+                # İndirme butonları alanı
                 dl_col1, dl_col2 = st.columns(2)
                 with dl_col1:
                     csv_data = personel_bazli.to_csv(index=False, encoding='cp1254').encode('cp1254')
@@ -112,6 +116,7 @@ elif secim == "F4 ÖDEME LİSTESİ":
                     )
                 
                 with dl_col2:
+                    # PDF Oluşturma Fonksiyonu
                     def generate_pdf(df_data, personel_adi, toplam_tutar):
                         buffer = BytesIO()
                         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
@@ -119,6 +124,7 @@ elif secim == "F4 ÖDEME LİSTESİ":
                         
                         styles = getSampleStyleSheet()
                         
+                        # Türkçe karakter desteği için standart Helvetica kullanımı veya sistem fontu
                         title_style = ParagraphStyle(
                             'TitleStyle',
                             parent=styles['Heading1'],
@@ -140,7 +146,8 @@ elif secim == "F4 ÖDEME LİSTESİ":
                         elements.append(Paragraph(f"Toplam Borç / Tutar: <b>{toplam_tutar:,.2f} TL</b>", normal_style))
                         elements.append(Spacer(1, 12))
                         
-                        headers = list(df_data.columns[:6])
+                        # Tablo Verileri
+                        headers = list(df_data.columns[:6]) # İlk 6 sütun sığması için
                         table_data = [[Paragraph(f"<b>{h}</b>", normal_style) for h in headers]]
                         
                         for _, row in df_data.iterrows():
@@ -175,6 +182,7 @@ elif secim == "F4 ÖDEME LİSTESİ":
             st.markdown("---")
             st.markdown("### 🔍 F4 Ödeme Dosyasında Olup Sistem Veritabanında (Firmalar) Bulunmayan Müşteriler")
             
+            # F4 dosyasındaki müşteriler ile firmalar_df'deki müşterileri karşılaştır
             f4_musteriler = set(f4_df[secilen_musteri_kolonu].dropna().astype(str).str.strip())
             sistem_musteriler = set(firmalar_df['Müşteri Adı'].dropna().astype(str).str.strip())
             
@@ -199,3 +207,9 @@ elif secim == "F4 ÖDEME LİSTESİ":
             st.error(f"Dosya okunurken veya analiz edilirken bir hata oluştu: {e}")
     else:
         st.info("Lütfen işlem yapmak için F4 Ödeme dosyanızı yükleyin.")
+'''
+
+with open('app_entegre.py', 'w', encoding='utf-8') as f:
+    f.write(code_content)
+
+print("Successfully updated app_entegre.py!")
