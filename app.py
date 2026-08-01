@@ -101,7 +101,6 @@ elif secim == "F4 ÖDEME LİSTESİ":
                     toplam_bakiye = temiz_borc.sum()
                     st.metric(label=f"{secilen_personel} Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_bakiye:,.2f} TL")
                 
-                # İndirme butonları (CSV ve PDF)
                 dl_col1, dl_col2 = st.columns(2)
                 with dl_col1:
                     csv_data = personel_bazli.to_csv(index=False, encoding='cp1254').encode('cp1254')
@@ -172,6 +171,29 @@ elif secim == "F4 ÖDEME LİSTESİ":
                     )
             else:
                 st.warning(f"Seçilen personel ({secilen_personel}) için eşleşen müşteri kaydı bulunamadı.")
+            
+            st.markdown("---")
+            st.markdown("### 🔍 F4 Ödeme Dosyasında Olup Sistem Veritabanında (Firmalar) Bulunmayan Müşteriler")
+            
+            f4_musteriler = set(f4_df[secilen_musteri_kolonu].dropna().astype(str).str.strip())
+            sistem_musteriler = set(firmalar_df['Müşteri Adı'].dropna().astype(str).str.strip())
+            
+            kayitli_olmayanlar = f4_musteriler - sistem_musteriler
+            
+            if kayitli_olmayanlar:
+                kayitli_olmayan_df = f4_df[f4_df[secilen_musteri_kolonu].astype(str).str.strip().isin(kayitli_olmayanlar)]
+                st.warning(f"F4 dosyasında yer alıp sistemde kayıtlı **olmayan** toplam **{len(kayitli_olmayanlar)}** farklı müşteri/firma tespit edildi.")
+                st.dataframe(kayitli_olmayan_df, use_container_width=True)
+                
+                unmatched_csv = kayitli_olmayan_df.to_csv(index=False, encoding='cp1254').encode('cp1254')
+                st.download_button(
+                    label="📥 Sisteme Kayıtlı Olmayan Müşterileri İndir (CSV)",
+                    data=unmatched_csv,
+                    file_name="sistemde_olmayan_musteriler.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.success("Tebrikler! F4 Ödeme dosyasındaki tüm müşteriler sistem veritabanında (Firmalar) eksiksiz olarak kayıtlı.")
                 
         except Exception as e:
             st.error(f"Dosya okunurken veya analiz edilirken bir hata oluştu: {e}")
