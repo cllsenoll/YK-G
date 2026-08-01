@@ -1,4 +1,38 @@
-# Let's write and test the complete updated python code for app_entegre.py
+import os
+import glob
+
+# Let's list files in the current directory to see what excel or script files are available.
+print("Files in current directory:", os.listdir('.'))
+for f in glob.glob('*.*'):
+    print(f)
+    # Let's see what else might be available or check app_entegre.py contents to understand the structure
+try:
+    with open('app_entegre.py', 'r', encoding='utf-8') as f:
+        print(f.read()[:2000]) # Print first 2000 chars
+except Exception as e:
+    print(e)
+    # Let's read the rest of app_entegre.py to see the full code and understand where F4 ÖDEME LİSTESİ and data processing is implemented.
+try:
+    with open('app_entegre.py', 'r', encoding='utf-8') as f:
+        full_code = f.read()
+    print(full_code)
+except Exception as e:
+    print(e)
+    # Let's write the complete updated script to app_entegre.py, incorporating:
+# 1. PDF export functionality for the list (using ReportLab or FPDF2/pdfkit/xhtml2pdf or ReportLab if available, let's check installed libraries or install reportlab).
+# 2. Finding customers in F4 ÖDEME LİSTESİ that are NOT in firmalar_df (FİRMALAR.CSV) and listing them at the bottom.
+
+import subprocess
+import sys
+
+# Check what packages are available
+try:
+    import reportlab
+    print("reportlab is installed")
+except ImportError:
+    print("installing reportlab...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "reportlab"])
+    # Let's write and test the complete updated python code for app_entegre.py
 code_content = '''import streamlit as st
 import pandas as pd
 import os
