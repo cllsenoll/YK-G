@@ -12,3 +12,7 @@ xlrd
 lxml
 html5lib
 fpdf
+reportlab
+streamlit
+pandas
+openpyxl
