@@ -35,59 +35,106 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# TÜRKÇE PARS VE TEMİZLEME FONKSİYONLARI
+# GÜNCELLENMİŞ MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
 # ==========================================
-def clean_string(text):
-    if pd.isna(text) or not text:
-        return ""
-    text = str(text).upper().strip()
-    replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
-    for search, replace in replacements.items():
-        text = text.replace(search, replace)
-    text = re.sub(r'[^A-Z0-9]', '', text)
-    return text
+MUSTERI_PERSONEL_MAP = {
+    "KÜBRA AYDEMİR": "AHMET BERKAN ÖKSÜZ",
+    "SERKAN KUYUMCU": "AHMET BERKAN ÖKSÜZ",
+    "AKSUN AĞAÇ AMBALAJ KERESTE SAN. TİC.LTD.ŞTİ": "ALATTİN CEBECİ",
+    "ARTEA DIŞ TİCARET MAKİNA SANAYİ LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "BAYAGRO TARIM İLAÇLARI SANAYİ VE TİCARETLTD. ŞTİ.": "ALATTİN CEBECİ",
+    "BEREKET İLAÇ KOZMETİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "BURMOD TEKSTİL SAN.TİC.A.Ş.-BURSA ŞB.": "ALATTİN CEBECİ",
+    "DEMİRCİOĞLU ŞASE ENDÜSTRİYEL YAĞ OTOMOTİV TEKSTİL GIDA İNŞAAT SANAYİ VE TİCARET A.Ş.": "ALATTİN CEBECİ",
+    "EDDA MAKİNE AMBALAJ NAKLİYE İNŞAAT KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "FLY MOBİLYA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "KOLİSAN AMBALAJ SANAYİ VE TİCARET A.Ş.": "ALATTİN CEBECİ",
+    "M-BEND METAL ÇELİK MAKİNA İNŞAAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "ALATTİN CEBECİ",
+    "MAVİFORM METAL KALIPFİKSTÜR VE APARAT SAN.VE TİC.LTD": "ALATTİN CEBECİ",
+    "MERZE MOBİLYA TASARIM İNŞAAT SANAYİ TİCARET ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "MNC BİTKİSEL VE SAĞLIK ÜRÜNLERİ REKLAM VE ORGANİZASYON BİLİŞİM TEKNOLOJİLERİ İNŞAAT SAN.TİC.LTD.ŞTİ.": "ALATTİN CEBECİ",
+    "SOMBURSA BAĞLANTI ELEMANLARI TİCARET VESAN.VE A.Ş.": "ALATTİN CEBECİ",
+    "ÖZBEYAZ DIŞ TİCARET TAŞIMACILIK ANONİM ŞİRKETİ": "ALATTİN CEBECİ",
+    "ALPER ŞEN": "BURCU DÜREN",
+    "ALSTOM RAYLI SİSTEM SANAYİ ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "AMPHENOL TURKEY BAĞLANTI ÇÖZÜMLERİ LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "BAŞATLAR ORMAN ÜRÜNLERİ VE AMBALAJ SAN.TİC.LTD.ŞTİ.": "BURCU DÜREN",
+    "D.K.C TEKNİK KAPLAMA APRE TEKSTİL KONFEKSİYON SERVİS TAŞIMACILIĞI SAN.VE TİC.LTD.ŞTİ.": "BURCU DÜREN",
+    "DEBSA TASARIM KONFEKSİYON TEKSTİL SANAYİ TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "DEVSAN ENDÜSTRİYEL OTOMASYON MAKİNA SANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
+    "DOĞANYİĞİTLER ORGANİK GIDA SANAYİ TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "DİLAN YILDIRIM - OLİNA BUTİK": "BURCU DÜREN",
+    "ESAUTOMOTION MEKATRONİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "GENÇ GÖZDE TARIM MAKİNALARI SANAYİ VE TİC.LTD.ŞTİ.": "BURCU DÜREN",
+    "GÜMÜŞ ARSLAN GENEL MAKİNE İMALATI ENERJİ VE ISI SİSTEMLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "HMT MAKİNA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "JACQUARD FASHİON KONFEKSİYON TEKSTİL SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "KCL LOJİSTİK OTOMOTİV SANAYİ TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "MATAY OTOMOTİV YAN SANAYİ VE TİCARET A .Ş.": "BURCU DÜREN",
+    "MİNTEKS TEKSTİL SAN VE TİC. LTD.ŞTİ. İŞLETME ADI:MİNTEKS": "BURCU DÜREN",
+    "MS MOTION OTOMOTİV ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "NOBEL TEKNİK OTO YANSANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
+    "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK": "BURCU DÜREN",
+    "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "BURCU DÜREN",
+    "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
+    "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
+    "VETABİL GIDA TARIM HAYVANCILIK LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "ÖZGÜR ULUS - MARANGOZ": "BURCU DÜREN",
+    "İLK-SEZ ENDÜSTRİYEL OTOMASYON SİSTEMLERİ ELEKTRİK ELEKTRONİK MAKİNA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
+    "ALTINSOY MADENCİLİKVE TİCARET A.Ş.": "CELAL ŞENOL",
+    "ENDER DURSAK": "CELAL ŞENOL",
+    "KAPLANLAR SOĞUTMA SAN.VE TİC.AŞ.": "CELAL ŞENOL",
+    "NARVİN TEKSTİL EMLAK KOZMETİK SOSYAL MEDYA İHRACAT İTHALAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
+    "SELFİE TARIMSAL TEDARİK SERACILIK DEPOCULUK DANIŞMANLIK SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "CELAL ŞENOL",
+    "SERGEN GÖRÜROĞLU": "CELAL ŞENOL",
+    "ARMENDUS OPERATÖR KOL VE PANO SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "BAROMAK MAKİNE SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "BİLEKLER İNŞAAT MAKİNALARI SANAYİ VETİCARET LTD.ŞTİ.": "HASAN SAĞLAM",
+    "BURKON MOBİLYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "DICHERSEAL ELASTOMER TEKNOLOJİLERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "DİGİTORİUM ELEKTRONİK TEKNOLOJİLERİ ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "ELECTRA KABLOSİSTEMLERİ SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "ELECTRA GRUP MÜHENDİSLİK ELEKTRİK TAAHHÜT MEKANİK PANO İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "ELECTRA PROJE ELEKTRİK MÜHENDİSLİK TAAHHÜT İNŞAAT ARAÇ KİRALAMA İTHALAT İHRACAT VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "F.S.K.MAKİNE İMALATTAAH.VE GIDA TEKN.SAN.T.LTD.ŞTİ.": "HASAN SAĞLAM",
+    "IPM GALVANO YÜZEY KAPLAMA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "LİGNUM AĞAÇ MAKİNELERİ SANAYİ TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "TEMPOLİFT ASANSÖR ELEKTRİK ELEKTRONİK SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "HASAN SAĞLAM",
+    "TURKAUTO MOTORLU ARAÇLAR SANAYİ VE TİCARET LİMİTED ŞİRKETİ.": "HASAN SAĞLAM",
+    "VİYA OTOMOTİV CAM TURİZM DENİZCİLİK SANAYİ VE TİCARET LTD. ŞTİ.": "HASAN SAĞLAM",
+    "YSL OTOMOTİV YAN SANAYİ VE TİCARET ANONİM ŞİRKETİ": "HASAN SAĞLAM",
+    "ÖZGÖZDE OTOMOTİV İNŞAAT İŞ MAKİNALARI PETROL NAKLİYE VE TURİZM HİZMETLERİ SANAYİ TİCARET A.Ş.": "HASAN SAĞLAM",
+    "ACH DIŞ TİCARET SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "AKEL DERİ TEKS.SAN.VE DIŞ TİC.LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "AYDEMİR DERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "BURSA DERİ İHTİSAS VE KARMA ORGANİZE SANAYİ BÖLGESİ": "SERGEN GÖRÜROĞLU",
+    "BURSA JELATİN GIDA SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "CİVAN GERİ DÖNÜŞÜM İZOLASYON PLASTİK METAL,İNŞAAT TAAH.SAN.VE TİC.LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "EMRE DERELİ - DERELİ MARİNE": "SERGEN GÖRÜROĞLU",
+    "ERBA FİNİSAJ DERİ SANAYİ VE TİCARET LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "GESU ARITMA SİSTEMLERİ SANAYİ VE TİCARET LTD.ŞTİ.": "SERGEN GÖRÜROĞLU",
+    "LAS-SAN LASTİK PLASTİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "MECANICA CNC MAKİNE VE SERVİS LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "MET-RİN DERİ MAKİNELERİ VE METAL SANAYİ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "MORKİM KİMYA İNŞAAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "MURSAN FİBERGLASS VE DENİZ ARAÇLARI TURİZM SANAYİ TİCARET PAZARLAMA LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "NOVMA KİMYA SANAYİ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "VAKETA DERİCİLİK SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "YILDIZ GRUBU DERİ KİMYA İNŞAAT TARIM SANAYİ VE DIŞ TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "İDEA ENDÜSTRİYEL KİMYA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "İNVENTA GIDA SANAYİ VE TİCARET LİMİTED ŞİRKETİ": "SERGEN GÖRÜROĞLU",
+    "ERKAN DEMİRCAN": "SUAT ARI",
+    "NUR ALUÇLUOĞLU - NUR TERZİ": "SUAT ARI",
+    "YERLİYURT MARİN DENİZ ARAÇ KAB.TUR.SVE P.LTD.ŞTİ.": "SUAT ARI",
+    "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI"
+}
 
-def parse_turkish_float(val):
-    if pd.isna(val) or val is None:
-        return 0.0
-    if isinstance(val, (int, float)):
-        return float(val)
-    s = str(val).strip()
-    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
-        return 0.0
-    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
-    if ',' in s and '.' in s:
-        s = s.replace('.', '').replace(',', '.')
-    elif ',' in s:
-        s = s.replace(',', '.')
-    try:
-        return float(s)
-    except:
-        return 0.0
-
-# --- FİRMALAR.CSV DOSYASINDAN DİNAMİK VE ESNEK EŞLEŞTİRME YÜKLEME ---
-@st.cache_data
-def load_musteri_personel_maps():
-    exact_map = {}
-    clean_map = {}
-    if os.path.exists('FİRMALAR.csv'):
-        try:
-            df_firmalar = pd.read_csv('FİRMALAR.csv', encoding='cp1254', sep=';')
-            df_firmalar.columns = [str(c).strip() for c in df_firmalar.columns]
-            if 'Müşteri Adı' in df_firmalar.columns and 'Personel' in df_firmalar.columns:
-                for _, row in df_firmalar.dropna(subset=['Müşteri Adı']).iterrows():
-                    m_adi = str(row['Müşteri Adı']).strip()
-                    p_adi = str(row['Personel']).strip() if not pd.isna(row['Personel']) else "ATANMAMIŞ"
-                    
-                    exact_map[m_adi.upper()] = p_adi
-                    clean_map[clean_string(m_adi)] = p_adi
-        except Exception:
-            pass
-    return exact_map, clean_map
-
-EXACT_MAP, CLEAN_MAP = load_musteri_personel_maps()
-
-# --- CSS VE TRANSLATE KORUMA KODLARI ---
+# ==========================================
+# CSS VE TRANSLATE KORUMA KODLARI
+# ==========================================
 custom_css = """
 <style>
     .notranslate {
@@ -182,6 +229,37 @@ custom_css = """
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
+
+# ==========================================
+# TÜRKÇE PARS VE TEMİZLEME FONKSİYONLARI
+# ==========================================
+def clean_string(text):
+    if pd.isna(text) or not text:
+        return ""
+    text = str(text).upper().strip()
+    replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
+    for search, replace in replacements.items():
+        text = text.replace(search, replace)
+    text = re.sub(r'[^A-Z0-9]', '', text)
+    return text
+
+def parse_turkish_float(val):
+    if pd.isna(val) or val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip()
+    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
+        return 0.0
+    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
+    if ',' in s and '.' in s:
+        s = s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        s = s.replace(',', '.')
+    try:
+        return float(s)
+    except:
+        return 0.0
 
 # ==========================================
 # OTOMATİK KURYE FOTOĞRAFI ALMA
@@ -465,7 +543,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ESNEK MÜŞTERİ EŞLEŞTİRME)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ÇOK ESNEK EŞLEŞTİRME)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -503,16 +581,25 @@ def process_f4_payment_data(df):
         m_upper = m_adi.upper()
         m_clean = clean_string(m_adi)
 
-        if m_upper in EXACT_MAP:
-            assigned_personel = EXACT_MAP[m_upper]
-        elif m_clean in CLEAN_MAP:
-            assigned_personel = CLEAN_MAP[m_clean]
+        # 1. Tam eşleşme kontrolü
+        if m_upper in MUSTERI_PERSONEL_MAP:
+            assigned_personel = MUSTERI_PERSONEL_MAP[m_upper]
         else:
-            # Kısmi esnek eşleşme kontrolü
-            for k_clean, p_val in CLEAN_MAP.items():
-                if k_clean and (k_clean in m_clean or m_clean in k_clean):
-                    assigned_personel = p_val
+            # 2. Temizlenmiş karakter eşleşmesi
+            found = False
+            for k, v in MUSTERI_PERSONEL_MAP.items():
+                if clean_string(k) == m_clean:
+                    assigned_personel = v
+                    found = True
                     break
+            
+            # 3. Kısmi içeren eşleşme kontrolü
+            if not found:
+                for k, v in MUSTERI_PERSONEL_MAP.items():
+                    k_clean = clean_string(k)
+                    if k_clean and (k_clean in m_clean or m_clean in k_clean):
+                        assigned_personel = v
+                        break
 
         processed_rows.append({
             "Müşteri Adı": m_adi,
@@ -778,14 +865,15 @@ elif st.session_state.active_tab == "HESAP":
 # TAB 4: F4 ÖDEME LİSTESİ (PERSONEL FİLTRELEME & PDF DESTEKLİ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme Listesi")
+    st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
     
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
-        st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve güncel personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_df)}** kayıt listeleniyor.")
+        st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve personel eşleştirmeleri yapıldı. Toplam **{len(f4_df)}** kayıt listeleniyor.")
         
+        # Personel bazlı filtreleme süzgeci
         unique_personnel = ["Tümü"] + sorted(f4_df["Personel"].dropna().unique().tolist())
-        selected_f4_personel = st.selectbox("🔍 Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter")
+        selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter")
         
         if selected_f4_personel != "Tümü":
             display_f4_df = f4_df[f4_df["Personel"] == selected_f4_personel]
@@ -806,6 +894,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         if not display_f4_df.empty:
             st.markdown("---")
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
+            st.metric(label=f"Seçilen Liste Toplam Fatura Borcu", value=f"{toplam_secilen_borc:,.2f} ₺")
             
             html_table = display_f4_df.to_html(classes='table table-striped', index=False)
             print_html = f"""
@@ -823,7 +912,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             </head>
             <body onload="window.print();">
                 <h2>Görükle Acente - F4 Tahsilat ve Borç Listesi</h2>
-                <p><b>Seçilen Süzgeç / Personel:</b> {selected_f4_personel}</p>
+                <p><b>Sorumlu Personel:</b> {selected_f4_personel}</p>
                 <p><b>Toplam Fatura Borcu:</b> {toplam_secilen_borc:,.2f} ₺</p>
                 {html_table}
             </body>
@@ -831,7 +920,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             """
             
             st.download_button(
-                label=f"📄 Görüntülenen Listeyi Yazdır / PDF Olarak Kaydet",
+                label=f"📄 Seçilen Listeyi Yazdır / PDF Olarak Kaydet",
                 data=print_html,
                 file_name=f"F4_Tahsilat_Listesi_{selected_f4_personel}.html",
                 mime="text/html",
@@ -844,10 +933,10 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve güncel personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_res)}** kayıt listeleniyor.")
+                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve personel eşleştirmeleri yapıldı. Toplam **{len(f4_res)}** kayıt listeleniyor.")
                 
                 unique_personnel = ["Tümü"] + sorted(f4_res["Personel"].dropna().unique().tolist())
-                selected_f4_personel = st.selectbox("🔍 Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter_2")
+                selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter_2")
                 
                 if selected_f4_personel != "Tümü":
                     display_f4_df = f4_res[f4_res["Personel"] == selected_f4_personel]
@@ -868,6 +957,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                 if not display_f4_df.empty:
                     st.markdown("---")
                     toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
+                    st.metric(label=f"Seçilen Liste Toplam Fatura Borcu", value=f"{toplam_secilen_borc:,.2f} ₺")
                     
                     html_table = display_f4_df.to_html(classes='table table-striped', index=False)
                     print_html = f"""
@@ -885,7 +975,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                     </head>
                     <body onload="window.print();">
                         <h2>Görükle Acente - F4 Tahsilat ve Borç Listesi</h2>
-                        <p><b>Seçilen Süzgeç / Personel:</b> {selected_f4_personel}</p>
+                        <p><b>Sorumlu Personel:</b> {selected_f4_personel}</p>
                         <p><b>Toplam Fatura Borcu:</b> {toplam_secilen_borc:,.2f} ₺</p>
                         {html_table}
                     </body>
@@ -893,13 +983,13 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                     """
                     
                     st.download_button(
-                        label=f"📄 Görüntülenen Listeyi Yazdır / PDF Olarak Kaydet",
+                        label=f"📄 Seçilen Listeyi Yazdır / PDF Olarak Kaydet",
                         data=print_html,
-                        file_name=f"F4_Tahsilat_Listesi_{selected_f4_personel}.html",
+                        file_name=f"F4_Tahsil_Listesi_{selected_f4_personel}.html",
                         mime="text/html",
                         help="Bu butona tıkladığınızda açılacak sayfadan hedefi 'PDF olarak kaydet' seçerek çıktısını alabilirsiniz."
                     )
             else:
                 st.warning("⚠️ Yüklenen dosya içerisinde F4 ödeme kriterlerine uygun (borcu sıfırdan büyük) veri bulunamadı.")
         else:
-            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili dosyanızı yükleyin.")
+            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili F4 ÖDEME LİSTESİ dosyanızı yükleyin.")
