@@ -34,24 +34,58 @@ if 'f4_df' not in st.session_state:
 KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
-# --- FİRMALAR.CSV DOSYASINDAN DİNAMİK EŞLEŞTİRME YÜKLEME ---
+# ==========================================
+# TÜRKÇE PARS VE TEMİZLEME FONKSİYONLARI
+# ==========================================
+def clean_string(text):
+    if pd.isna(text) or not text:
+        return ""
+    text = str(text).upper().strip()
+    replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
+    for search, replace in replacements.items():
+        text = text.replace(search, replace)
+    text = re.sub(r'[^A-Z0-9]', '', text)
+    return text
+
+def parse_turkish_float(val):
+    if pd.isna(val) or val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip()
+    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
+        return 0.0
+    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
+    if ',' in s and '.' in s:
+        s = s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        s = s.replace(',', '.')
+    try:
+        return float(s)
+    except:
+        return 0.0
+
+# --- FİRMALAR.CSV DOSYASINDAN DİNAMİK VE ESNEK EŞLEŞTİRME YÜKLEME ---
 @st.cache_data
-def load_musteri_personel_map():
-    mapping = {}
+def load_musteri_personel_maps():
+    exact_map = {}
+    clean_map = {}
     if os.path.exists('FİRMALAR.csv'):
         try:
             df_firmalar = pd.read_csv('FİRMALAR.csv', encoding='cp1254', sep=';')
             df_firmalar.columns = [str(c).strip() for c in df_firmalar.columns]
             if 'Müşteri Adı' in df_firmalar.columns and 'Personel' in df_firmalar.columns:
                 for _, row in df_firmalar.dropna(subset=['Müşteri Adı']).iterrows():
-                    m_adi = str(row['Müşteri Adı']).strip().upper()
+                    m_adi = str(row['Müşteri Adı']).strip()
                     p_adi = str(row['Personel']).strip() if not pd.isna(row['Personel']) else "ATANMAMIŞ"
-                    mapping[m_adi] = p_adi
+                    
+                    exact_map[m_adi.upper()] = p_adi
+                    clean_map[clean_string(m_adi)] = p_adi
         except Exception:
             pass
-    return mapping
+    return exact_map, clean_map
 
-MUSTERI_PERSONEL_MAP = load_musteri_personel_map()
+EXACT_MAP, CLEAN_MAP = load_musteri_personel_maps()
 
 # --- CSS VE TRANSLATE KORUMA KODLARI ---
 custom_css = """
@@ -148,37 +182,6 @@ custom_css = """
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
-
-# ==========================================
-# TÜRKÇE PARS VE TEMİZLEME FONKSİYONLARI
-# ==========================================
-def clean_string(text):
-    if pd.isna(text) or not text:
-        return ""
-    text = str(text).upper().strip()
-    replacements = {'İ': 'I', 'I': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C'}
-    for search, replace in replacements.items():
-        text = text.replace(search, replace)
-    text = re.sub(r'[^A-Z0-9]', '', text)
-    return text
-
-def parse_turkish_float(val):
-    if pd.isna(val) or val is None:
-        return 0.0
-    if isinstance(val, (int, float)):
-        return float(val)
-    s = str(val).strip()
-    if not s or s.upper() in ['NAN', 'NONE', '-', '0', '0.0', '0,0']:
-        return 0.0
-    s = s.replace(' ', '').replace('₺', '').replace('TL', '')
-    if ',' in s and '.' in s:
-        s = s.replace('.', '').replace(',', '.')
-    elif ',' in s:
-        s = s.replace(',', '.')
-    try:
-        return float(s)
-    except:
-        return 0.0
 
 # ==========================================
 # OTOMATİK KURYE FOTOĞRAFI ALMA
@@ -462,7 +465,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (MÜŞTERİ - PERSONEL EŞLEŞTİRMELİ)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ESNEK MÜŞTERİ EŞLEŞTİRME)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -497,14 +500,18 @@ def process_f4_payment_data(df):
             continue
 
         assigned_personel = "ATANMAMIŞ"
-        m_adi_upper = m_adi.upper()
-        
-        if m_adi_upper in MUSTERI_PERSONEL_MAP:
-            assigned_personel = MUSTERI_PERSONEL_MAP[m_adi_upper]
+        m_upper = m_adi.upper()
+        m_clean = clean_string(m_adi)
+
+        if m_upper in EXACT_MAP:
+            assigned_personel = EXACT_MAP[m_upper]
+        elif m_clean in CLEAN_MAP:
+            assigned_personel = CLEAN_MAP[m_clean]
         else:
-            for k, v in MUSTERI_PERSONEL_MAP.items():
-                if k in m_adi_upper or m_adi_upper in k:
-                    assigned_personel = v
+            # Kısmi esnek eşleşme kontrolü
+            for k_clean, p_val in CLEAN_MAP.items():
+                if k_clean and (k_clean in m_clean or m_clean in k_clean):
+                    assigned_personel = p_val
                     break
 
         processed_rows.append({
@@ -775,7 +782,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
-        st.success(f"✅ F4 Ödeme Listesi başarıyla işlendi ve güncel personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_df)}** kayıt listeleniyor.")
+        st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve güncel personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_df)}** kayıt listeleniyor.")
         
         unique_personnel = ["Tümü"] + sorted(f4_df["Personel"].dropna().unique().tolist())
         selected_f4_personel = st.selectbox("🔍 Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter")
@@ -837,7 +844,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla işlendi ve güncel personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_res)}** kayıt listeleniyor.")
+                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve güncel personel eşleştirmeleri yapıldı. Borcu sıfırdan farklı **{len(f4_res)}** kayıt listeleniyor.")
                 
                 unique_personnel = ["Tümü"] + sorted(f4_res["Personel"].dropna().unique().tolist())
                 selected_f4_personel = st.selectbox("🔍 Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter_2")
@@ -888,7 +895,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
                     st.download_button(
                         label=f"📄 Görüntülenen Listeyi Yazdır / PDF Olarak Kaydet",
                         data=print_html,
-                        file_name=f"F4_Tahsil_Listesi_{selected_f4_personel}.html",
+                        file_name=f"F4_Tahsilat_Listesi_{selected_f4_personel}.html",
                         mime="text/html",
                         help="Bu butona tıkladığınızda açılacak sayfadan hedefi 'PDF olarak kaydet' seçerek çıktısını alabilirsiniz."
                     )
