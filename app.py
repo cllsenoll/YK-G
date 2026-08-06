@@ -35,7 +35,7 @@ KULLANICI_ISIM = "Celal ŞENOL"
 KULLANICI_GOREV = "Şube Şefi"
 
 # ==========================================
-# GÜNCELLENMİŞ MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
+# MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
 # ==========================================
 MUSTERI_PERSONEL_MAP = {
     "KÜBRA AYDEMİR": "AHMET BERKAN ÖKSÜZ",
@@ -543,7 +543,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ÇOK ESNEK EŞLEŞTİRME)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ESNEK MÜŞTERİ EŞLEŞTİRME)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -581,11 +581,9 @@ def process_f4_payment_data(df):
         m_upper = m_adi.upper()
         m_clean = clean_string(m_adi)
 
-        # 1. Tam eşleşme kontrolü
         if m_upper in MUSTERI_PERSONEL_MAP:
             assigned_personel = MUSTERI_PERSONEL_MAP[m_upper]
         else:
-            # 2. Temizlenmiş karakter eşleşmesi
             found = False
             for k, v in MUSTERI_PERSONEL_MAP.items():
                 if clean_string(k) == m_clean:
@@ -593,7 +591,6 @@ def process_f4_payment_data(df):
                     found = True
                     break
             
-            # 3. Kısmi içeren eşleşme kontrolü
             if not found:
                 for k, v in MUSTERI_PERSONEL_MAP.items():
                     k_clean = clean_string(k)
@@ -862,39 +859,50 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 4: F4 ÖDEME LİSTESİ (PERSONEL FİLTRELEME & PDF DESTEKLİ)
+# TAB 4: F4 ÖDEME LİSTESİ (İNTERAKTİF MANUEL ATAMA & SÜZGEÇ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    
+    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak yazabilir** veya değiştirebilirsiniz.")
+
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
-        st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve personel eşleştirmeleri yapıldı. Toplam **{len(f4_df)}** kayıt listeleniyor.")
         
-        # Personel bazlı filtreleme süzgeci
-        unique_personnel = ["Tümü"] + sorted(f4_df["Personel"].dropna().unique().tolist())
-        selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter")
-        
-        if selected_f4_personel != "Tümü":
-            display_f4_df = f4_df[f4_df["Personel"] == selected_f4_personel]
-        else:
-            display_f4_df = f4_df
-            
-        st.dataframe(
-            display_f4_df, 
-            use_container_width=True,
+        # Kullanıcının veri tablosu üzerinde doğrudan düzenleme yapabilmesi için st.data_editor kullanıldı
+        edited_f4_df = st.data_editor(
+            f4_df,
             column_config={
-                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
-                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
-                "Açıklama": st.column_config.TextColumn("Açıklama"),
-                "Personel": st.column_config.TextColumn("Sorumlu Personel")
-            }
+                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
+                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
+                "Açıklama": st.column_config.TextColumn("Açıklama", disabled=True),
+                "Personel": st.column_config.TextColumn("Sorumlu Personel (Düzenlenebilir)")
+            },
+            hide_index=False,
+            use_container_width=True,
+            num_rows="fixed",
+            key="f4_editable_table"
         )
         
+        # Düzenlenen veriyi session state'e kaydet
+        st.session_state.f4_df = pd.DataFrame(edited_f4_df)
+        
+        st.markdown("---")
+        
+        # Sorumlu Personele Göre Süzgeç Alanı
+        available_personnel = ["Tümü"] + sorted(st.session_state.f4_df["Personel"].dropna().unique().tolist())
+        selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", available_personnel, key="f4_personel_filter")
+        
+        if selected_f4_personel != "Tümü":
+            display_f4_df = st.session_state.f4_df[st.session_state.f4_df["Personel"] == selected_f4_personel]
+        else:
+            display_f4_df = st.session_state.f4_df
+            
+        st.subheader(f"📌 Seçilen Görünüm: {selected_f4_personel} (Toplam {len(display_f4_df)} Kayıt)")
+        st.dataframe(display_f4_df, use_container_width=True)
+        
         if not display_f4_df.empty:
-            st.markdown("---")
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-            st.metric(label=f"Seçilen Liste Toplam Fatura Borcu", value=f"{toplam_secilen_borc:,.2f} ₺")
+            st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
             
             html_table = display_f4_df.to_html(classes='table table-striped', index=False)
             print_html = f"""
@@ -920,7 +928,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             """
             
             st.download_button(
-                label=f"📄 Seçilen Listeyi Yazdır / PDF Olarak Kaydet",
+                label=f"📄 Görüntülenen Listeyi Yazdır / PDF Olarak Kaydet",
                 data=print_html,
                 file_name=f"F4_Tahsilat_Listesi_{selected_f4_personel}.html",
                 mime="text/html",
@@ -933,62 +941,8 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi ve personel eşleştirmeleri yapıldı. Toplam **{len(f4_res)}** kayıt listeleniyor.")
-                
-                unique_personnel = ["Tümü"] + sorted(f4_res["Personel"].dropna().unique().tolist())
-                selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", unique_personnel, key="f4_personel_filter_2")
-                
-                if selected_f4_personel != "Tümü":
-                    display_f4_df = f4_res[f4_res["Personel"] == selected_f4_personel]
-                else:
-                    display_f4_df = f4_res
-                    
-                st.dataframe(
-                    display_f4_df, 
-                    use_container_width=True,
-                    column_config={
-                        "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
-                        "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺"),
-                        "Açıklama": st.column_config.TextColumn("Açıklama"),
-                        "Personel": st.column_config.TextColumn("Sorumlu Personel")
-                    }
-                )
-                
-                if not display_f4_df.empty:
-                    st.markdown("---")
-                    toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-                    st.metric(label=f"Seçilen Liste Toplam Fatura Borcu", value=f"{toplam_secilen_borc:,.2f} ₺")
-                    
-                    html_table = display_f4_df.to_html(classes='table table-striped', index=False)
-                    print_html = f"""
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <title>F4 Tahsilat Listesi - {selected_f4_personel}</title>
-                        <style>
-                            body {{ font-family: Arial, sans-serif; margin: 20px; color: #333; }}
-                            h2 {{ color: #0A58CA; }}
-                            table {{ width: 100% !important; border-collapse: collapse; margin-top: 15px; }}
-                            th, td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 12px; }}
-                            th {{ background-color: #f2f2f2; }}
-                        </style>
-                    </head>
-                    <body onload="window.print();">
-                        <h2>Görükle Acente - F4 Tahsilat ve Borç Listesi</h2>
-                        <p><b>Sorumlu Personel:</b> {selected_f4_personel}</p>
-                        <p><b>Toplam Fatura Borcu:</b> {toplam_secilen_borc:,.2f} ₺</p>
-                        {html_table}
-                    </body>
-                    </html>
-                    """
-                    
-                    st.download_button(
-                        label=f"📄 Seçilen Listeyi Yazdır / PDF Olarak Kaydet",
-                        data=print_html,
-                        file_name=f"F4_Tahsil_Listesi_{selected_f4_personel}.html",
-                        mime="text/html",
-                        help="Bu butona tıkladığınızda açılacak sayfadan hedefi 'PDF olarak kaydet' seçerek çıktısını alabilirsiniz."
-                    )
+                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi. Tablodan personelleri manuel düzenleyebilirsiniz.")
+                st.rerun()
             else:
                 st.warning("⚠️ Yüklenen dosya içerisinde F4 ödeme kriterlerine uygun (borcu sıfırdan büyük) veri bulunamadı.")
         else:
