@@ -347,7 +347,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (YENİLENEN TAM DOĞRU MANTIK)
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU
 # ==========================================
 def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -357,17 +357,12 @@ def process_excel_data(df):
     if missing_cols:
         return None, missing_cols
 
-    # Güvenli ve temiz karşılaştırma sütunları
-    df["Clean_Zimmet"] = df["AT Zimmet Personel Adı"].astype(str).str.strip().str.upper()
-    df["Clean_Teslim"] = df["Teslim Eden Personel"].astype(str).str.strip().str.upper()
-    
     has_aciklama = "Açıklama" in df.columns
 
-    # Kural: AT Zimmet Personel Adı ile Teslim Eden Personel Adı birebir aynı ve dolu ise teslim edilmiştir.
     def check_delivery(row):
-        z = row["Clean_Zimmet"]
-        t = row["Clean_Teslim"]
-        return (z == t) and (z != "" and z != "NAN" and z != "NAT" and z != "NONE")
+        zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
+        teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
+        return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
 
     def get_channel_type(row):
         kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
@@ -384,21 +379,19 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    valid_df = df[df["Clean_Zimmet"].notna() & (df["Clean_Zimmet"] != "") & (df["Clean_Zimmet"] != "NAN") & (df["Clean_Zimmet"] != "NONE")]
-    personnel_groups = valid_df.groupby("Clean_Zimmet")
-    
+    personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
     summary = []
-    for clean_person, p_df in personnel_groups:
-        p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else clean_person
-        
-        # 1. Zimmet Sayısı: İlgili personelin adı kaç satırda geçiyorsa
+
+    for person in personnel_list:
+        p_name = str(person).strip()
+        if not p_name or p_name.upper() == "NAN":
+            continue
+            
+        p_df = df[df["AT Zimmet Personel Adı"] == person]
         zimmet_cnt = len(p_df)
         
-        # 2. Teslim Edilen: AT Zimmet Personel Adı ile Teslim Eden Personel Adı aynı olan satır sayısı
         teslim_df = p_df[p_df["Is_Teslim"] == True]
         teslim_cnt = len(teslim_df)
-        
-        # 3. Teslim Edilemeyen (Devir): Farklı veya boş olanlar
         teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
@@ -550,7 +543,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ESNEK MÜŞTERİ EŞLEŞTİRME)
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -866,15 +859,16 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 4: F4 ÖDEME LİSTESİ
+# TAB 4: F4 ÖDEME LİSTESİ (İNTERAKTİF MANUEL ATAMA & SÜZGEÇ)
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini manuel olarak değiştirebilirsiniz.")
+    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak yazabilir** veya değiştirebilirsiniz.")
 
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
         
+        # Kullanıcının veri tablosu üzerinde doğrudan düzenleme yapabilmesi için st.data_editor kullanıldı
         edited_f4_df = st.data_editor(
             f4_df,
             column_config={
@@ -889,9 +883,12 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             key="f4_editable_table"
         )
         
+        # Düzenlenen veriyi session state'e kaydet
         st.session_state.f4_df = pd.DataFrame(edited_f4_df)
+        
         st.markdown("---")
         
+        # Sorumlu Personele Göre Süzgeç Alanı
         available_personnel = ["Tümü"] + sorted(st.session_state.f4_df["Personel"].dropna().unique().tolist())
         selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", available_personnel, key="f4_personel_filter")
         
@@ -905,7 +902,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         
         if not display_f4_df.empty:
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-            st.metric(label=f"Seçilen Liste Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
+            st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
             
             html_table = display_f4_df.to_html(classes='table table-striped', index=False)
             print_html = f"""
@@ -944,9 +941,9 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi.")
+                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi. Tablodan personelleri manuel düzenleyebilirsiniz.")
                 st.rerun()
             else:
                 st.warning("⚠️ Yüklenen dosya içerisinde F4 ödeme kriterlerine uygun (borcu sıfırdan büyük) veri bulunamadı.")
         else:
-            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili dosyanızı yükleyin.")
+            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili F4 ÖDEME LİSTESİ dosyanızı yükleyin.")
