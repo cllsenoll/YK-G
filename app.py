@@ -347,7 +347,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (GÜÇLENDİRİLMİŞ SAYIM)
 # ==========================================
 def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -357,11 +357,15 @@ def process_excel_data(df):
     if missing_cols:
         return None, missing_cols
 
+    # Güvenli karşılaştırma için temiz sütunlar oluştur
+    df["Clean_Zimmet_Personel"] = df["AT Zimmet Personel Adı"].astype(str).str.upper().str.strip()
+    df["Clean_Teslim_Personel"] = df["Teslim Eden Personel"].astype(str).str.upper().str.strip()
+    
     has_aciklama = "Açıklama" in df.columns
 
     def check_delivery(row):
-        zimmet_p = str(row["AT Zimmet Personel Adı"]).strip().upper()
-        teslim_p = str(row["Teslim Eden Personel"]).strip().upper()
+        zimmet_p = row["Clean_Zimmet_Personel"]
+        teslim_p = row["Clean_Teslim_Personel"]
         return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
 
     def get_channel_type(row):
@@ -379,15 +383,16 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    personnel_list = df["AT Zimmet Personel Adı"].dropna().unique()
+    # Geçerli personelleri gruplayarak her satırı tam say
+    valid_df = df[df["Clean_Zimmet_Personel"].notna() & (df["Clean_Zimmet_Personel"] != "") & (df["Clean_Zimmet_Personel"] != "NAN")]
+    personnel_groups = valid_df.groupby("Clean_Zimmet_Personel")
+    
     summary = []
-
-    for person in personnel_list:
-        p_name = str(person).strip()
-        if not p_name or p_name.upper() == "NAN":
-            continue
-            
-        p_df = df[df["AT Zimmet Personel Adı"] == person]
+    for clean_person, p_df in personnel_groups:
+        # Orijinal düzgün personel ismini koru
+        p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else clean_person
+        
+        # Zimmet Sayısı: İlgili personelin adı kaç satırda geçiyorsa tam o kadardır
         zimmet_cnt = len(p_df)
         
         teslim_df = p_df[p_df["Is_Teslim"] == True]
@@ -543,7 +548,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ESNEK MÜŞTERİ EŞLEŞTİRME)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -859,16 +864,15 @@ elif st.session_state.active_tab == "HESAP":
         st.info("💡 Lütfen sol taraftan **PERSONEL HESAP ALIMI EKRANI** dosyanızı yükleyin.")
 
 # ==========================================
-# TAB 4: F4 ÖDEME LİSTESİ (İNTERAKTİF MANUEL ATAMA & SÜZGEÇ)
+# TAB 4: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Personel Tahsilat Listesi")
-    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini **manuel olarak yazabilir** veya değiştirebilirsiniz.")
+    st.caption("✍️ Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış firmaların personel isimlerini manuel olarak değiştirebilirsiniz.")
 
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
         
-        # Kullanıcının veri tablosu üzerinde doğrudan düzenleme yapabilmesi için st.data_editor kullanıldı
         edited_f4_df = st.data_editor(
             f4_df,
             column_config={
@@ -883,12 +887,9 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             key="f4_editable_table"
         )
         
-        # Düzenlenen veriyi session state'e kaydet
         st.session_state.f4_df = pd.DataFrame(edited_f4_df)
-        
         st.markdown("---")
         
-        # Sorumlu Personele Göre Süzgeç Alanı
         available_personnel = ["Tümü"] + sorted(st.session_state.f4_df["Personel"].dropna().unique().tolist())
         selected_f4_personel = st.selectbox("🔍 Sorumlu Personele Göre Süzgeçle:", available_personnel, key="f4_personel_filter")
         
@@ -902,7 +903,7 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         
         if not display_f4_df.empty:
             toplam_secilen_borc = display_f4_df["Fatura Borcu"].sum()
-            st.metric(label=f"{selected_f4_personel} - Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
+            st.metric(label=f"Seçilen Liste Toplam Fatura Borcu / Tahsilat Hedefi", value=f"{toplam_secilen_borc:,.2f} ₺")
             
             html_table = display_f4_df.to_html(classes='table table-striped', index=False)
             print_html = f"""
@@ -941,9 +942,9 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             f4_res = process_f4_payment_data(raw_df)
             st.session_state.f4_df = f4_res
             if f4_res is not None and not f4_res.empty:
-                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi. Tablodan personelleri manuel düzenleyebilirsiniz.")
+                st.success(f"✅ F4 Ödeme Listesi başarıyla analiz edildi.")
                 st.rerun()
             else:
                 st.warning("⚠️ Yüklenen dosya içerisinde F4 ödeme kriterlerine uygun (borcu sıfırdan büyük) veri bulunamadı.")
         else:
-            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili F4 ÖDEME LİSTESİ dosyanızı yükleyin.")
+            st.info("💡 F4 Ödeme Listesi verilerini görüntülemek için sol menüden ilgili dosyanızı yükleyin.")
