@@ -347,7 +347,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (KESİN VE DOĞRU HESAPLAMA)
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (KESİN VE DOĞRU MANTIK)
 # ==========================================
 def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -357,17 +357,11 @@ def process_excel_data(df):
     if missing_cols:
         return None, missing_cols
 
-    # Güvenli karşılaştırma sütunları
+    # Karşılaştırma için temiz sütunlar
     df["Clean_Zimmet"] = df["AT Zimmet Personel Adı"].astype(str).str.strip().str.upper()
     df["Clean_Teslim"] = df["Teslim Eden Personel"].astype(str).str.strip().str.upper()
     
     has_aciklama = "Açıklama" in df.columns
-
-    # Kural: AT Zimmet Personel Adı ile Teslim Eden Personel Adı birebir aynı ve dolu ise teslim edilmiştir.
-    def check_delivery(row):
-        z = row["Clean_Zimmet"]
-        t = row["Clean_Teslim"]
-        return (z == t) and (z != "" and z != "NAN" and z != "NAT" and z != "NONE" and not any(char.isdigit() for char in z))
 
     def get_channel_type(row):
         kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
@@ -381,17 +375,15 @@ def process_excel_data(df):
             return "İMZA"
         return "DİĞER"
 
-    df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    # Sadece geçerli personel isimlerini filtrele (Boş, NAN, sayı içerenler hariç)
+    # 1. Yalnızca AT Zimmet Personel Adı sütununda ismi geçen geçerli personelleri filtrele
     valid_df = df[
         df["Clean_Zimmet"].notna() & 
         (df["Clean_Zimmet"] != "") & 
         (df["Clean_Zimmet"] != "NAN") & 
-        (df["Clean_Zimmet"] != "NONE") &
-        (~df["Clean_Zimmet"].str.contains(r'\d', na=False))
-    ]
+        (df["Clean_Zimmet"] != "NONE")
+    ].copy()
     
     personnel_groups = valid_df.groupby("Clean_Zimmet")
     
@@ -399,14 +391,14 @@ def process_excel_data(df):
     for clean_person, p_df in personnel_groups:
         p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else clean_person
         
-        # 1. Zimmet Sayısı: İlgili personelin adı kaç satırda geçiyorsa tam o kadardır.
+        # 1. Zimmet Sayısı: İlgili personelin adı AT Zimmet Personel Adı sütununda kaç satırda geçiyorsa
         zimmet_cnt = len(p_df)
         
         # 2. Teslim Edilen: AT Zimmet Personel Adı ile Teslim Eden Personel Adı aynı olan satır sayısı
-        teslim_df = p_df[p_df["Is_Teslim"] == True]
+        teslim_df = p_df[p_df["Clean_Zimmet"] == p_df["Clean_Teslim"]]
         teslim_cnt = len(teslim_df)
         
-        # 3. Teslim Edilemeyen (Devir): Farklı veya boş olanlar
+        # 3. Teslim Edilemeyen (Devir): AT Zimmet Personel Adı sütununda var ancak Teslim Eden kısmında yoksa (Zimmet - Teslim Edilen)
         teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
