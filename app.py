@@ -347,7 +347,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (GÜÇLENDİRİLMİŞ SAYIM)
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (YENİLENEN TAM DOĞRU MANTIK)
 # ==========================================
 def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -357,16 +357,17 @@ def process_excel_data(df):
     if missing_cols:
         return None, missing_cols
 
-    # Güvenli karşılaştırma için temiz sütunlar oluştur
-    df["Clean_Zimmet_Personel"] = df["AT Zimmet Personel Adı"].astype(str).str.upper().str.strip()
-    df["Clean_Teslim_Personel"] = df["Teslim Eden Personel"].astype(str).str.upper().str.strip()
+    # Güvenli ve temiz karşılaştırma sütunları
+    df["Clean_Zimmet"] = df["AT Zimmet Personel Adı"].astype(str).str.strip().str.upper()
+    df["Clean_Teslim"] = df["Teslim Eden Personel"].astype(str).str.strip().str.upper()
     
     has_aciklama = "Açıklama" in df.columns
 
+    # Kural: AT Zimmet Personel Adı ile Teslim Eden Personel Adı birebir aynı ve dolu ise teslim edilmiştir.
     def check_delivery(row):
-        zimmet_p = row["Clean_Zimmet_Personel"]
-        teslim_p = row["Clean_Teslim_Personel"]
-        return (zimmet_p == teslim_p) and (zimmet_p != "" and zimmet_p != "NAN")
+        z = row["Clean_Zimmet"]
+        t = row["Clean_Teslim"]
+        return (z == t) and (z != "" and z != "NAN" and z != "NAT" and z != "NONE")
 
     def get_channel_type(row):
         kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
@@ -383,20 +384,21 @@ def process_excel_data(df):
     df["Is_Teslim"] = df.apply(check_delivery, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    # Geçerli personelleri gruplayarak her satırı tam say
-    valid_df = df[df["Clean_Zimmet_Personel"].notna() & (df["Clean_Zimmet_Personel"] != "") & (df["Clean_Zimmet_Personel"] != "NAN")]
-    personnel_groups = valid_df.groupby("Clean_Zimmet_Personel")
+    valid_df = df[df["Clean_Zimmet"].notna() & (df["Clean_Zimmet"] != "") & (df["Clean_Zimmet"] != "NAN") & (df["Clean_Zimmet"] != "NONE")]
+    personnel_groups = valid_df.groupby("Clean_Zimmet")
     
     summary = []
     for clean_person, p_df in personnel_groups:
-        # Orijinal düzgün personel ismini koru
         p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else clean_person
         
-        # Zimmet Sayısı: İlgili personelin adı kaç satırda geçiyorsa tam o kadardır
+        # 1. Zimmet Sayısı: İlgili personelin adı kaç satırda geçiyorsa
         zimmet_cnt = len(p_df)
         
+        # 2. Teslim Edilen: AT Zimmet Personel Adı ile Teslim Eden Personel Adı aynı olan satır sayısı
         teslim_df = p_df[p_df["Is_Teslim"] == True]
         teslim_cnt = len(teslim_df)
+        
+        # 3. Teslim Edilemeyen (Devir): Farklı veya boş olanlar
         teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
