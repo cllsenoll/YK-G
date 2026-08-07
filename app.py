@@ -357,9 +357,15 @@ def process_excel_data(df):
     if missing_cols:
         return None, missing_cols
 
-    # Karşılaştırma için temiz sütunlar
-    df["Clean_Zimmet"] = df["AT Zimmet Personel Adı"].astype(str).str.strip().str.upper()
-    df["Clean_Teslim"] = df["Teslim Eden Personel"].astype(str).str.strip().str.upper()
+    # İsimleri boşluklardan arındırıp standardize eden normalize fonksiyonu
+    def norm_name(val):
+        if pd.isna(val) or not val:
+            return ""
+        # Çoklu boşlukları tek boşluğa indirge ve büyük harf yap
+        return " ".join(str(val).upper().split())
+
+    df["Norm_Zimmet"] = df["AT Zimmet Personel Adı"].apply(norm_name)
+    df["Norm_Teslim"] = df["Teslim Eden Personel"].apply(norm_name)
     
     has_aciklama = "Açıklama" in df.columns
 
@@ -377,28 +383,30 @@ def process_excel_data(df):
 
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
-    # 1. Yalnızca AT Zimmet Personel Adı sütununda ismi geçen geçerli personelleri filtrele
+    # Yalnızca AT Zimmet Personel Adı sütununda ismi geçen geçerli personelleri filtrele
     valid_df = df[
-        df["Clean_Zimmet"].notna() & 
-        (df["Clean_Zimmet"] != "") & 
-        (df["Clean_Zimmet"] != "NAN") & 
-        (df["Clean_Zimmet"] != "NONE")
+        df["Norm_Zimmet"].notna() & 
+        (df["Norm_Zimmet"] != "") & 
+        (df["Norm_Zimmet"] != "NAN") & 
+        (df["Norm_Zimmet"] != "NONE")
     ].copy()
     
-    personnel_groups = valid_df.groupby("Clean_Zimmet")
+    personnel_groups = valid_df.groupby("Norm_Zimmet")
     
     summary = []
-    for clean_person, p_df in personnel_groups:
-        p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else clean_person
+    for norm_p, p_df in personnel_groups:
+        # Görüntülenecek en düzgün orijinal ismi seç
+        p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else norm_p
+        p_name = " ".join(str(p_name).split()) # Fazla boşlukları temizle
         
         # 1. Zimmet Sayısı: İlgili personelin adı AT Zimmet Personel Adı sütununda kaç satırda geçiyorsa
         zimmet_cnt = len(p_df)
         
-        # 2. Teslim Edilen: AT Zimmet Personel Adı ile Teslim Eden Personel Adı aynı olan satır sayısı
-        teslim_df = p_df[p_df["Clean_Zimmet"] == p_df["Clean_Teslim"]]
+        # 2. Teslim Edilen: AT Zimmet Personel Adı ile Teslim Eden Personel Adı birebir aynı olan satır sayısı
+        teslim_df = p_df[p_df["Norm_Zimmet"] == p_df["Norm_Teslim"]]
         teslim_cnt = len(teslim_df)
         
-        # 3. Teslim Edilemeyen (Devir): AT Zimmet Personel Adı sütununda var ancak Teslim Eden kısmında yoksa (Zimmet - Teslim Edilen)
+        # 3. Teslim Edilemeyen (Devir): AT Zimmet Personel Adı sütununda var ancak Teslim Eden kısmında uyuşmuyorsa (Zimmet - Teslim Edilen)
         teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
