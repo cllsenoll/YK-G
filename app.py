@@ -347,39 +347,52 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (DOĞRULANMIŞ MANTIK)
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (KESİN VE DOĞRU MANTIK)
 # ==========================================
 def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
-    req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel", "Kargo Teslimat Kanalı"]
+    req_cols = ["AT Zimmet Personel Adı"]
     missing_cols = [col for col in req_cols if col not in df.columns]
     
     if missing_cols:
         return None, missing_cols
 
-    # İsimleri standardize eden normalize fonksiyonu (boşlukları ve büyük/küçük harf farkını arındırır)
+    # İsimleri standardize eden normalize fonksiyonu
     def norm_name(val):
         if pd.isna(val) or not val:
             return ""
         return " ".join(str(val).upper().split())
 
     df["Norm_Zimmet"] = df["AT Zimmet Personel Adı"].apply(norm_name)
-    df["Norm_Teslim"] = df["Teslim Eden Personel"].apply(norm_name)
     
+    # Teslim durumu sütun kontrolü (Teslim Saati veya Teslim Durumu 'Teslim Edildi' mi?)
+    has_teslim_saati = "Teslim Saati" in df.columns
+    has_teslim_alan = "Teslim Alan" in df.columns
     has_aciklama = "Açıklama" in df.columns
+    has_ozel_alan = "Fatura Özel Alanları" in df.columns
+
+    def is_delivered(row):
+        if has_teslim_saati:
+            val = str(row["Teslim Saati"]).strip().upper()
+            if "TESLİM EDİLDİ" in val or "TESLIM EDILDI" in val:
+                return True
+        return False
 
     def get_channel_type(row):
-        kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper()
+        alan = str(row["Teslim Alan"]).strip().upper() if has_teslim_alan else ""
         aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
+        ozel = str(row["Fatura Özel Alanları"]).strip().upper() if has_ozel_alan else ""
         
-        if "KONTROL SENDE" in kanali or "POS ENTEGRASYON" in aciklama:
-            return "KS-PE"
-        elif "SMS" in kanali:
+        blob = f"{alan} {aciklama} {ozel}"
+        if "SMS" in blob:
             return "SMS"
-        elif "İMZA" in kanali or "IMZA" in kanali:
+        elif "İMZA" in blob or "IMZA" in blob:
             return "İMZA"
+        elif "POS" in blob or "KONTROL" in blob or "KAPIYA" in blob:
+            return "KS-PE"
         return "DİĞER"
 
+    df["Is_Delivered"] = df.apply(is_delivered, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
     # Yalnızca AT Zimmet Personel Adı sütununda ismi geçen geçerli personelleri filtrele
@@ -397,14 +410,14 @@ def process_excel_data(df):
         p_name = p_df["AT Zimmet Personel Adı"].mode()[0] if not p_df["AT Zimmet Personel Adı"].mode().empty else norm_p
         p_name = " ".join(str(p_name).split())
         
-        # 1. Zimmet Sayısı: İlgili personelin adı AT Zimmet Personel Adı sütununda kaç satırda geçiyorsa
+        # 1. Zimmet Sayısı: AT Zimmet Personel Adı sütununda adının geçtiği toplam satır sayısı
         zimmet_cnt = len(p_df)
         
-        # 2. Teslim Edilen Sayısı: Hem AT Zimmet Personel Adı hem de Teslim Eden Personel sütunlarında uyuşan satır sayısı
-        teslim_df = p_df[p_df["Norm_Zimmet"] == p_df["Norm_Teslim"]]
+        # 2. Teslim Edilen Sayısı: Teslim Saati 'Teslim Edildi' olan satır sayısı
+        teslim_df = p_df[p_df["Is_Delivered"] == True]
         teslim_cnt = len(teslim_df)
         
-        # 3. Teslim Edilemeyen (Devir) Sayısı: AT Zimmet sütununda var ancak Teslim Eden kısmında boş veya uyuşmuyor (Zimmet - Teslim Edilen)
+        # 3. Teslim Edilemeyen (Devir) Sayısı: Zimmet - Teslim Edilen
         teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
@@ -556,7 +569,7 @@ def process_personnel_account_data(df):
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
-# F4 ÖDEME LİSTESİ İŞLEME MOTORU (ESNEK MÜŞTERİ EŞLEŞTİRME)
+# F4 ÖDEME LİSTESİ İŞLEME MOTORU
 # ==========================================
 def process_f4_payment_data(df):
     df.columns = df.columns.astype(str).str.strip()
