@@ -347,11 +347,11 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi. Lütfen dosyanın bozuk olmadığını kontrol edin.")
 
 # ==========================================
-# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (KESİN VE DOĞRU MANTIK)
+# AT ZİMMET İZLEME VERİ İŞLEME MOTORU (GÜNCELLENMİŞ DEVİR KURALI)
 # ==========================================
 def process_excel_data(df):
     df.columns = df.columns.astype(str).str.strip()
-    req_cols = ["AT Zimmet Personel Adı"]
+    req_cols = ["AT Zimmet Personel Adı", "Teslim Eden Personel"]
     missing_cols = [col for col in req_cols if col not in df.columns]
     
     if missing_cols:
@@ -364,26 +364,38 @@ def process_excel_data(df):
         return " ".join(str(val).upper().split())
 
     df["Norm_Zimmet"] = df["AT Zimmet Personel Adı"].apply(norm_name)
+    df["Norm_Teslim"] = df["Teslim Eden Personel"].apply(norm_name)
     
-    # Teslim durumu sütun kontrolü (Teslim Saati veya Teslim Durumu 'Teslim Edildi' mi?)
-    has_teslim_saati = "Teslim Saati" in df.columns
-    has_teslim_alan = "Teslim Alan" in df.columns
-    has_aciklama = "Açıklama" in df.columns
-    has_ozel_alan = "Fatura Özel Alanları" in df.columns
+    # Teslim Durumu / Teslim Saati sütun kontrolü
+    durum_col = None
+    for c in ["Teslim Durumu", "Teslim Saati"]:
+        if c in df.columns:
+            durum_col = c
+            break
 
-    def is_delivered(row):
-        if has_teslim_saati:
-            val = str(row["Teslim Saati"]).strip().upper()
-            if "TESLİM EDİLDİ" in val or "TESLIM EDILDI" in val:
+    has_aciklama = "Açıklama" in df.columns
+    has_kanali = "Kargo Teslimat Kanalı" in df.columns
+
+    def is_devir(row):
+        # 1. Kural: Teslim Durumu sütununda "Teslim Edilmedi / Bekletiliyor Şubede" geçiyorsa devirdir.
+        if durum_col:
+            d_val = str(row[durum_col]).strip().upper()
+            if "BEKLETİLİYOR" in d_val or "EDİLMEDİ" in d_val or "BEKLETILIYOR" in d_val or "EDILMEDI" in d_val:
                 return True
+        
+        # 2. Kural: Teslim Eden Personel sütunundaki ad, AT Zimmet Personel Adı ile farklıysa (veya boşsa) devirdir.
+        z_name = row["Norm_Zimmet"]
+        t_name = row["Norm_Teslim"]
+        if t_name == "" or t_name != z_name:
+            return True
+            
         return False
 
     def get_channel_type(row):
-        alan = str(row["Teslim Alan"]).strip().upper() if has_teslim_alan else ""
+        kanali = str(row["Kargo Teslimat Kanalı"]).strip().upper() if has_kanali else ""
         aciklama = str(row["Açıklama"]).strip().upper() if has_aciklama else ""
-        ozel = str(row["Fatura Özel Alanları"]).strip().upper() if has_ozel_alan else ""
         
-        blob = f"{alan} {aciklama} {ozel}"
+        blob = f"{kanali} {aciklama}"
         if "SMS" in blob:
             return "SMS"
         elif "İMZA" in blob or "IMZA" in blob:
@@ -392,7 +404,7 @@ def process_excel_data(df):
             return "KS-PE"
         return "DİĞER"
 
-    df["Is_Delivered"] = df.apply(is_delivered, axis=1)
+    df["Is_Devir"] = df.apply(is_devir, axis=1)
     df["Custom_Channel"] = df.apply(get_channel_type, axis=1)
 
     # Yalnızca AT Zimmet Personel Adı sütununda ismi geçen geçerli personelleri filtrele
@@ -413,18 +425,22 @@ def process_excel_data(df):
         # 1. Zimmet Sayısı: AT Zimmet Personel Adı sütununda adının geçtiği toplam satır sayısı
         zimmet_cnt = len(p_df)
         
-        # 2. Teslim Edilen Sayısı: Teslim Saati 'Teslim Edildi' olan satır sayısı
-        teslim_df = p_df[p_df["Is_Delivered"] == True]
-        teslim_cnt = len(teslim_df)
+        # 2. Teslim Edilemeyen (Devir) Sayısı: Belirtilen kurallara uyan satır sayısı
+        devir_df = p_df[p_df["Is_Devir"] == True]
+        teslim_edilemeyen_cnt = len(devir_df)
         
-        # 3. Teslim Edilemeyen (Devir) Sayısı: Zimmet - Teslim Edilen
-        teslim_edilemeyen_cnt = zimmet_cnt - teslim_cnt
+        # 3. Teslim Edilen Sayısı: Zimmet - Teslim Edilemeyen
+        teslim_cnt = zimmet_cnt - teslim_edilemeyen_cnt
+        if teslim_cnt < 0:
+            teslim_cnt = 0
         
         success_rate = round((teslim_cnt / zimmet_cnt) * 100, 1) if zimmet_cnt > 0 else 0.0
         
-        sms_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "SMS"])
-        imza_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "İMZA"])
-        ks_pe_cnt = len(teslim_df[teslim_df["Custom_Channel"] == "KS-PE"])
+        # Kanallar yalnızca teslim edilen (devir olmayan) kargolar üzerinden hesaplanır
+        teslim_edilen_df = p_df[p_df["Is_Devir"] == False]
+        sms_cnt = len(teslim_edilen_df[teslim_edilen_df["Custom_Channel"] == "SMS"])
+        imza_cnt = len(teslim_edilen_df[teslim_edilen_df["Custom_Channel"] == "İMZA"])
+        ks_pe_cnt = len(teslim_edilen_df[teslim_edilen_df["Custom_Channel"] == "KS-PE"])
 
         summary.append({
             "Personel": p_name,
